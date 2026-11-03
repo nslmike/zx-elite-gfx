@@ -1,0 +1,168 @@
+{
+  "status": "passed",
+  "timestamp_utc": "2026-11-03T19:10:46.196931+00:00",
+  "seed": 1985,
+  "line_cases": 2056,
+  "line_pixel_writes": 133675,
+  "clipping_cases": 3872,
+  "clipping_rejected": 1780,
+  "clipping_pixel_writes": 250874,
+  "close_model_cases": 3006,
+  "ship_poses": 6606,
+  "ship_pixel_writes": 1472957,
+  "models": [
+    {
+      "id": 0,
+      "name": "Coriolis",
+      "poses": 324,
+      "pixel_writes": 114003,
+      "close_poses": 144
+    },
+    {
+      "id": 1,
+      "name": "Missile",
+      "poses": 332,
+      "pixel_writes": 47290,
+      "close_poses": 152
+    },
+    {
+      "id": 2,
+      "name": "Escape pod",
+      "poses": 336,
+      "pixel_writes": 22265,
+      "close_poses": 156
+    },
+    {
+      "id": 3,
+      "name": "Splinter",
+      "poses": 336,
+      "pixel_writes": 23724,
+      "close_poses": 156
+    },
+    {
+      "id": 4,
+      "name": "Cargo canister",
+      "poses": 338,
+      "pixel_writes": 35581,
+      "close_poses": 158
+    },
+    {
+      "id": 5,
+      "name": "Boulder",
+      "poses": 336,
+      "pixel_writes": 25929,
+      "close_poses": 156
+    },
+    {
+      "id": 6,
+      "name": "Asteroid",
+      "poses": 332,
+      "pixel_writes": 97114,
+      "close_poses": 152
+    },
+    {
+      "id": 7,
+      "name": "Rock Hermit",
+      "poses": 332,
+      "pixel_writes": 92578,
+      "close_poses": 152
+    },
+    {
+      "id": 8,
+      "name": "Viper",
+      "poses": 332,
+      "pixel_writes": 52546,
+      "close_poses": 152
+    },
+    {
+      "id": 9,
+      "name": "Cobra Mk III",
+      "poses": 324,
+      "pixel_writes": 88505,
+      "close_poses": 144
+    },
+    {
+      "id": 10,
+      "name": "Python (торговый)",
+      "poses": 324,
+      "pixel_writes": 118194,
+      "close_poses": 144
+    },
+    {
+      "id": 11,
+      "name": "Python (пиратский)",
+      "poses": 324,
+      "pixel_writes": 123646,
+      "close_poses": 144
+    },
+    {
+      "id": 12,
+      "name": "Cobra Mk III (пиратская)",
+      "poses": 324,
+      "pixel_writes": 89211,
+      "close_poses": 144
+    },
+    {
+      "id": 13,
+      "name": "Asp Mk II",
+      "poses": 332,
+      "pixel_writes": 69475,
+      "close_poses": 152
+    },
+    {
+      "id": 14,
+      "name": "Fer-de-Lance",
+      "poses": 332,
+      "pixel_writes": 77275,
+      "close_poses": 152
+    },
+    {
+      "id": 15,
+      "name": "Thargoid",
+      "poses": 324,
+      "pixel_writes": 107165,
+      "close_poses": 144
+    },
+    {
+      "id": 16,
+      "name": "Sidewinder",
+      "poses": 332,
+      "pixel_writes": 50790,
+      "close_poses": 152
+    },
+    {
+      "id": 17,
+      "name": "Krait",
+      "poses": 332,
+      "pixel_writes": 83254,
+      "close_poses": 152
+    },
+    {
+      "id": 18,
+      "name": "Thargon",
+      "poses": 336,
+      "pixel_writes": 40216,
+      "close_poses": 156
+    },
+    {
+      "id": 19,
+      "name": "Dodo · Elite Legend 1.09",
+      "poses": 324,
+      "pixel_writes": 114196,
+      "close_poses": 144
+    }
+  ],
+  "reference": "original Z80 instructions executed by SkoolKit 10.1",
+  "compared": [
+    "line write addresses and bitmasks",
+    "line error accumulator",
+    "face flags",
+    "per-vertex projection shift and three fractional bytes",
+    "projected vertex bytes including signed zero",
+    "selected edge indices",
+    "per-edge pixel sequences",
+    "4096 framebuffer bytes"
+  ],
+  "scope": "19 original Spectrum blueprints plus Dodo from Elite Legend 1.09 rendered by the original Z80 code, centered front view, original viewport clipping; both projection paths, UI depth limits 32/64/128/256..6000 depending on model",
+  "limitation": "Finite differential tests are evidence for the supported domain, not a proof over all inputs."
+}
