@@ -11,6 +11,8 @@ from .model import DODO_ID, MODELS
 PACKS = Path(__file__).resolve().parents[1] / "asset_packs"
 SOURCE_NAMES = {"elite": "Elite", "oolite": "Oolite", "griff": "Griff SpecGloss",
                 "pioneer": "Pioneer", "mixed": "Сборный флот"}
+FLYBY_SOURCE_NAMES = {"zx": "ZX · пиксельный каркас", "elite": "Elite · наша обшивка",
+                      **{key: value for key, value in SOURCE_NAMES.items() if key != "elite"}}
 TEXTURE_NAMES = {"author": "Из набора", "procedural": "Процедурные"}
 
 

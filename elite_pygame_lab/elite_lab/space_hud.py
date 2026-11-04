@@ -6,7 +6,7 @@ import moderngl
 import numpy as np
 import pygame
 
-from .space_assets import SOURCE_NAMES, TEXTURE_NAMES
+from .space_assets import FLYBY_SOURCE_NAMES, SOURCE_NAMES, TEXTURE_NAMES
 
 
 _INK = (231, 236, 235)
@@ -106,19 +106,24 @@ class SpaceHUD:
                 y = h - i - 1 if end else i
                 pygame.draw.line(surf, (4, 9, 16, round(opacity * (1 - i / rows) ** 1.6)),
                                  (0, y), (w, y))
-        label("E L I T E", pad, 18*s, self.mono, _GOLD)
+        zx = scene.model_source == "zx"
+        accent = (235, 245, 255) if zx else _GOLD
+        label("E L I T E", pad, 18*s, self.mono, accent)
         if w > 580*s:
             caption = "АВТОПРОЛЁТ     H  интерфейс  /  Esc  выход"
             label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
+        label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
 
-        ship = scene.ships[scene.selected]
-        authored = bool(ship.materials) and scene.texture_source == "author"
-        source = SOURCE_NAMES[scene.model_source]
-        textures = "Родные" if authored else "Обшивка"
+        empty = bool(getattr(scene, "empty_slot", False))
+        ship = None if empty else scene.ships[scene.selected]
+        authored = ship is not None and bool(ship.materials) and scene.texture_source == "author"
+        source = FLYBY_SOURCE_NAMES[scene.model_source]
+        textures = "Родные" if authored else "Наша обшивка"
         auto = "вкл" if scene.auto_sources else "выкл"
         wide = w > 760*s
         buttons = (("cycle_source", "M", f"Модели · {source}" if wide else source),
-                   ("cycle_textures", "T", f"Текстуры · {textures}" if wide else textures),
+                   ("cycle_textures", "T", "Каркас · без текстур" if zx else
+                    (f"Текстуры · {textures}" if wide else textures)),
                    ("toggle_auto", "A", f"Авто · {auto}"),
                    ("menu_credits", "I", "Авторы"))
         rows, row = [], []
@@ -141,13 +146,18 @@ class SpaceHUD:
                 self.options[action] = rect
                 active = action == "menu_credits" and self.menu == "credits"
                 pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
-                label(caption, x + 10*s, y + 4*s, color=_GOLD if active else _MUTED,
+                if action == "cycle_source":
+                    pygame.draw.line(surf, accent, rect.topleft, rect.bottomleft, max(1, round(2*s)))
+                label(caption, x + 10*s, y + 4*s, color=accent if active or action == "cycle_source" else _MUTED,
                       width=width-round(20*s))
 
         title_y = controls_y - round(38*s)
-        label(ship.name, pad, title_y, self.brand, width=w-2*pad)
-        source_title = ship.source_title
-        if scene.model_source not in (ship.source_id, "mixed"):
+        label("Пустое место" if empty else ship.name, pad, title_y, self.brand,
+              color=accent, width=w-2*pad)
+        source_title = "Гость Pioneer отсутствует в этом наборе" if empty else ship.source_title
+        if not empty and scene.model_source in ("zx", "elite"):
+            source_title = FLYBY_SOURCE_NAMES[scene.model_source]
+        elif not empty and scene.model_source not in (ship.source_id, "mixed"):
             source_title += f" · замена для {source}"
         label(source_title, pad, title_y - 19*s, self.mono, _MUTED, width=w-2*pad)
         if self.menu == "credits":
@@ -157,10 +167,17 @@ class SpaceHUD:
     def _flyby_credits(self, surf, scene, ship, label, pad, bottom):
         s = self.s
         width = min(self.size[0] - 2*pad, round(520*s))
-        texture = ship.source_title if ship.materials and scene.texture_source == "author" else "Процедурная обшивка"
+        if ship is None:
+            details = ("Пустое место гостя", "В этом наборе гостевой модели нет.",
+                       "Sinonatrix Courier доступен в Pioneer и сборном флоте.")
+        else:
+            texture = ("Без текстур · пиксельный каркас" if scene.model_source == "zx" else
+                       ship.source_title if ship.materials and scene.texture_source == "author" else
+                       "Наша процедурная обшивка")
+            details = (ship.name, f"Геометрия — {ship.source_title}", f"Автор — {ship.author}",
+                       f"Лицензия — {ship.license}", f"Текстуры — {texture}")
         lines = []
-        for text in (ship.name, f"Геометрия — {ship.source_title}", f"Автор — {ship.author}",
-                     f"Лицензия — {ship.license}", f"Текстуры — {texture}"):
+        for text in details:
             current = ""
             for word in text.split():
                 if current and self.text.size(current + " " + word)[0] > width - 24*s:
@@ -362,7 +379,7 @@ class SpaceHUD:
             self._resize(size)
         # Во время полёта меняется только 3D. Карту перерисовываем при смене проекции.
         key = (size, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
-               self.menu, getattr(scene, "auto_sources", None),
+               self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
                vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)

@@ -307,11 +307,15 @@ class SpaceScene:
         displacement = right * axes[0] + np.array((0, axes[1], 0)) + self.forward * axes[2]
         self._flight_eye += displacement * self.speed * boost * float(np.clip(dt, 0, 0.1))
 
-    def view_projection(self, aspect):
-        self._aspect = max(0.05, float(aspect))
+    def _view_basis(self):
         forward = self.forward
         right = _unit(np.cross(forward, (0, 1, 0)))
         up = np.cross(right, forward)
+        return right, up, forward
+
+    def view_projection(self, aspect):
+        self._aspect = max(0.05, float(aspect))
+        right, up, forward = self._view_basis()
         eye = self.eye
         view = np.eye(4, dtype=np.float64)
         view[:3, :3] = (right, up, -forward)

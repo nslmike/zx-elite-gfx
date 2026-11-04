@@ -380,7 +380,11 @@ class _Mesh:
         result = np.asarray(self.rows, dtype=np.float32)
         center = (result[:, :3].min(axis=0) + result[:, :3].max(axis=0)) * .5
         result[:, :3] -= center
-        result[:, :3] /= np.linalg.norm(result[:, :3], axis=1).max()
+        radius = np.linalg.norm(result[:, :3], axis=1).max()
+        result[:, :3] /= radius
+        # Каркас и цветная оболочка используют один центр и один масштаб,
+        # включая выступающие стволы/фонарь. Сами треугольники не меняются.
+        self.center, self.radius = center, float(radius)
         return np.ascontiguousarray(result)
 
 
@@ -562,7 +566,20 @@ def _build_cached(model_id):
     _extra_details(mesh, model_id, points, hull)
     result = mesh.finish()
     result.flags.writeable = False
-    return result
+    mesh.center.flags.writeable = False
+    return result, mesh.center, mesh.radius
+
+
+def source_transform(model_id: int):
+    """Центр и радиус нормализации исходных координат классической модели.
+
+    Точка каркаса в локальной системе атласа: ``(point - center) / radius``.
+    Центр возвращается копией, чтобы кеш готовой геометрии был неизменяем.
+    """
+    if isinstance(model_id, bool) or not isinstance(model_id, (int, np.integer)) or not 0 <= model_id < len(MODELS):
+        raise ValueError(f"Неизвестный номер модели: {model_id!r}")
+    _, center, radius = _build_cached(int(model_id))
+    return center.copy(), radius
 
 
 def build_mesh(model_id: int) -> np.ndarray:
@@ -576,4 +593,4 @@ def build_mesh(model_id: int) -> np.ndarray:
     """
     if isinstance(model_id, bool) or not isinstance(model_id, (int, np.integer)) or not 0 <= model_id < len(MODELS):
         raise ValueError(f"Неизвестный номер модели: {model_id!r}")
-    return _build_cached(int(model_id)).copy()
+    return _build_cached(int(model_id))[0].copy()

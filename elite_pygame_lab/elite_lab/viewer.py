@@ -606,7 +606,7 @@ class Viewer:
 
 def main(argv=None) -> None:
     from math import isfinite
-    from .space_assets import AssetCatalog, AssetError, SOURCE_NAMES, TEXTURE_NAMES
+    from .space_assets import AssetCatalog, AssetError, FLYBY_SOURCE_NAMES, SOURCE_NAMES, TEXTURE_NAMES
 
     def nonnegative_seconds(value):
         try:
@@ -624,7 +624,8 @@ def main(argv=None) -> None:
     parser.add_argument("--screenshot", type=Path, help="Сохранить кадр UI и выйти (для проверки)")
     parser.add_argument("--headless", action="store_true", help="Рендер без окна (для space/flyby — отдельный контекст OpenGL)")
     parser.add_argument("--no-hud", action="store_true", help="Скрыть интерфейс space/flyby")
-    parser.add_argument("--model-source", choices=tuple(SOURCE_NAMES), help="Набор геометрии для space/flyby")
+    parser.add_argument("--model-source", choices=tuple(FLYBY_SOURCE_NAMES),
+                        help="Набор геометрии для space/flyby; zx доступен только в flyby")
     parser.add_argument("--texture-source", choices=tuple(TEXTURE_NAMES), help="Родные карты модели или процедурная обшивка атласа")
     parser.add_argument("--source-interval", type=nonnegative_seconds, metavar="СЕК",
                         help="flyby: интервал смены наборов (по умолчанию 8 с; 0 — вручную)")
@@ -636,9 +637,12 @@ def main(argv=None) -> None:
         parser.error("--source-interval и --at относятся только к автопролёту (--mode flyby)")
     if args.at is not None and not (args.headless or args.screenshot):
         parser.error("--at требует --headless или --screenshot")
+    if args.model_source == "zx" and args.mode != "flyby" and not args.list_sources:
+        parser.error("Пиксельный каркас --model-source zx доступен только в --mode flyby")
     if args.list_sources:
         catalog = AssetCatalog()
-        print("elite — классический каталог Elite, модели 0–19, процедурная обшивка")
+        print("zx — только flyby: ZX · пиксельный каркас, модели 0–19")
+        print("elite — Elite · наша обшивка, модели 0–19, процедурные материалы")
         for source in catalog.pack_ids:
             try:
                 pack = catalog.pack(source)
@@ -649,6 +653,8 @@ def main(argv=None) -> None:
                 print(f"  {author} · {license_name}")
         if catalog.pack_ids:
             print("mixed — сборный флот из установленных наборов")
+        print("flyby: порядок M и таймера — " + " → ".join(("zx", *catalog.sources, "zx")))
+        print("flyby: место 20 остаётся пустым без гостевой модели Pioneer")
         return
     if args.mode in ("space", "flyby"):
         try:
@@ -659,7 +665,8 @@ def main(argv=None) -> None:
             parser.exit(1, "Для space/flyby установите зависимости: python -m pip install -r requirements-space.txt\n")
         try:
             run_space(args.model, args.screenshot, args.headless, not args.no_hud,
-                      args.model_source or "elite", args.texture_source or "author", mode=args.mode,
+                      args.model_source or ("zx" if args.mode == "flyby" else "elite"),
+                      args.texture_source or "author", mode=args.mode,
                       source_interval=8.0 if args.source_interval is None else args.source_interval, at=args.at)
         except AssetError as exc:
             parser.error(str(exc))

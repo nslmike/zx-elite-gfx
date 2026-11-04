@@ -48,9 +48,9 @@ def _station_dock(ship):
 class FlybyScene(SpaceScene):
     """Плавный близкий проход по всем корпусам с независимыми вращениями.
 
-    Основные двадцать мест сохраняются при любой смене геометрии. Гостевое
-    место Pioneer лежит между двумя станциями и чуть снаружи кольца: когда
-    гостя нет, камера видит обе станции, не пустой промежуток каталога.
+    Двадцать одно равномерное место сохраняется при любой смене геометрии.
+    Гостевое место Pioneer лежит между Coriolis и ракетой на общей окружности;
+    без гостя оно остаётся пустым и не меняет путь камеры.
     ``seek`` воспроизводит исходный запуск, до ручных M/A; текстуры сохраняет.
     """
 
@@ -61,9 +61,10 @@ class FlybyScene(SpaceScene):
     # Из внешней точки близкий экспонат и дальняя дуга должны помещаться
     # одновременно. Поле зрения атласа SpaceScene остаётся прежним.
     fov = 82.0
-    _route = (*range(COBRA_ID, len(MODELS)), len(MODELS), *range(COBRA_ID))
-    # Последняя точка замыкает круг. Два полушага освобождают гостевое место.
-    _angle_knots = np.array((*range(11), 10.5, *range(11, 21)), dtype=float)
+    _route = (*range(COBRA_ID, len(MODELS)), 0, len(MODELS), *range(1, COBRA_ID))
+    # Спокойные полные обороты, с индивидуальными скоростями и направлениями.
+    _roll_rates = tuple((-1 if index % 3 == 1 else 1) * (.12 + .007 * (index % 7))
+                        for index in range(slot_count))
     _exhibit_radii = np.array([
         1.7 * sqrt(sqrt(max(v.x*v.x + v.y*v.y + v.z*v.z for v in model.vertices)) / 100.0)
         for model in MODELS
@@ -75,7 +76,7 @@ class FlybyScene(SpaceScene):
         # соседние силуэты дальней дуги по высоте вместо единственной полосы.
         return .9 * sin(3 * angle + .5) + .5 * sin(2 * angle - .6)
 
-    def __init__(self, selected=None, *, model_source="elite", texture_source="author",
+    def __init__(self, selected=None, *, model_source="zx", texture_source="author",
                  catalog=None, source_interval=8.0):
         interval = float(source_interval)
         if not isfinite(interval) or interval < 0:
@@ -87,9 +88,15 @@ class FlybyScene(SpaceScene):
         self._initial_interval = interval
         self._source_epoch = 0.0
         self._layouts = {}
+        self._look_yaw = self._look_pitch = 0.0
+        self._camera_up = np.array((0.0, 1.0, 0.0))
         self._start_slot = self._route.index(COBRA_ID if selected is None else int(selected) % self.slot_count)
-        super().__init__(COBRA_ID if selected is None else selected, model_source=model_source,
+        # ZX и наша цветная обшивка используют один исходный каталог, но
+        # являются разными режимами показа и отдельными шагами таймера.
+        super().__init__(COBRA_ID if selected is None else selected,
+                         model_source="elite" if model_source == "zx" else model_source,
                          texture_source=texture_source, catalog=catalog)
+        self.model_source = model_source
         self.camera_mode = "flyby"
         self._animate()
 
@@ -98,12 +105,8 @@ class FlybyScene(SpaceScene):
         # хватает нормализованных сфер: не сортируем hi-res Pioneer np.unique.
         bases, docks, angles = [], [], []
         for index, ship in enumerate(ships):
-            angle = (index - COBRA_ID) * tau / len(MODELS)
-            if index == len(MODELS):
-                angle = (DODO_ID + .5 - COBRA_ID) * tau / len(MODELS)
-            # Даже описанные сферы гостя и двух станций разделены зазором.
-            radial = self.ring_radius + (4.1 if index >= len(MODELS) else 0.0)
-            position = radial * np.array((sin(angle), 0.0, cos(angle)))
+            angle = self._route.index(index) * tau / self.slot_count
+            position = self.ring_radius * np.array((sin(angle), 0.0, cos(angle)))
             position[1] = self._ring_height(angle)
             side = .78
             if index in (0, DODO_ID):
@@ -156,7 +159,7 @@ class FlybyScene(SpaceScene):
         if source in self._layouts:
             self.ships, self._base_objects, self._docks, self._inspection_angles = self._layouts[source]
         else:
-            self._load_objects(self.catalog.fleet(source))
+            self._load_objects(self.catalog.classic if source == "zx" else self.catalog.fleet(source))
             self._layouts[source] = (self.ships, self._base_objects, self._docks,
                                      self._inspection_angles)
         self.model_source = source
@@ -166,6 +169,19 @@ class FlybyScene(SpaceScene):
         self._apply_source(source)
         self._source_epoch = self.elapsed
         self._animate()
+
+    @property
+    def source_options(self):
+        """Одинаковая последовательность ручной и автоматической смены."""
+        return ("zx", *self.catalog.sources)
+
+    def cycle_source(self):
+        options = self.source_options
+        self.set_source(options[(options.index(self.model_source) + 1) % len(options)])
+
+    def cycle_textures(self):
+        if self.model_source != "zx":
+            super().cycle_textures()
 
     def toggle_auto_sources(self):
         self.auto_sources = not self.auto_sources
@@ -196,7 +212,7 @@ class FlybyScene(SpaceScene):
             remainder -= self.source_interval
         if changes <= 0:
             return
-        options = self.catalog.sources
+        options = self.source_options
         source = options[(options.index(self.model_source) + changes) % len(options)]
         self._apply_source(source)
         self._source_epoch = self.elapsed - remainder
@@ -226,20 +242,14 @@ class FlybyScene(SpaceScene):
         phase %= self.slot_count
         # У корпуса скорость ниже, между корпусами выше; нулевых остановок нет.
         phase -= .42 * sin(tau * phase) / tau
-        index = int(floor(phase))
-        u = phase - index
-        knots = self._angle_knots
-        steps = np.diff(knots)
-        previous, current, following = steps[(index - 1) % self.slot_count], steps[index], steps[(index + 1) % self.slot_count]
-        # Гармонические касательные монотонного Hermite: полушаг к гостю
-        # не создаёт ни разворота, ни излома скорости на входе/выходе дуги.
-        m0 = 2 * previous * current / (previous + current)
-        m1 = 2 * current * following / (current + following)
-        value = ((2*u**3 - 3*u*u + 1) * knots[index]
-                 + (u**3 - 2*u*u + u) * m0
-                 + (-2*u**3 + 3*u*u) * knots[index + 1]
-                 + (u**3 - u*u) * m1)
-        return value * tau / len(MODELS)
+        return phase * tau / self.slot_count
+
+    @property
+    def empty_slot(self):
+        """Встреча с зарезервированным местом, для которого в наборе нет гостя."""
+        phase = self._start_slot + self.elapsed / self.seconds_per_ship
+        focus = self._route[int(floor(phase + .5)) % self.slot_count]
+        return focus >= len(self.ships)
 
     def _animate(self):
         phase = self._start_slot + self.elapsed / self.seconds_per_ship
@@ -260,10 +270,6 @@ class FlybyScene(SpaceScene):
         ascent = _smootherstep(19.5 - slot)
         elevation = 1 - 2 * descent * ascent
         height = self._ring_height(angle) + (.70 * gap + .40) * elevation
-        guest_weight = _smootherstep(1 - abs(slot - 11))
-        # Гостевое место вынесено дальше станций. Компенсируем его сдвиг
-        # только радиусом орбиты, сохраняя высоту и размер близкого силуэта.
-        gap += 2.4 * guest_weight
         camera_radius = self.ring_radius + gap
         camera_angle = angle + .025
         self._camera_eye = np.array((camera_radius * sin(camera_angle), height,
@@ -273,14 +279,16 @@ class FlybyScene(SpaceScene):
         # Взгляд проходит сквозь ближнюю сторону кольца к его середине.
         # Небольшой боковой и вертикальный сдвиг героя открывает за ним
         # широкую глубокую дугу; наведение не зависит от набора геометрии.
-        tilt = .64 - .12 * descent * ascent
+        # Полный roll меняет высоту силуэта: оставляем поля перед верхней
+        # строкой и нижней подписью также у поперечного ракурса крыльев.
+        tilt = .74 - .12 * descent * ascent
         self._camera_target = self._camera_eye + 20 * (
             -radial + .10 * tangent + np.array((0.0, -tilt * elevation, 0.0)))
         focus = self._route[int(floor(phase + .5)) % self.slot_count]
         if focus >= len(self.ships):
-            # Без гостя раньше передаём подпись Coriolis: после 10.7 Dodo
-            # уже уходит к левому краю, а ближайшая станция видна целиком.
-            focus = DODO_ID if phase % self.slot_count < 10.7 else 0
+            # Технический индекс нужен базовому контракту selected_object.
+            # Интерфейс использует empty_slot и не приписывает месту соседа.
+            focus = 0 if slot < self._route.index(len(MODELS)) else 1
         self.selected = focus
         objects = []
         for obj, dock in zip(self._base_objects, self._docks):
@@ -290,12 +298,13 @@ class FlybyScene(SpaceScene):
                 rotation = _rotation((0, 0, 1), time * (.20 if index == 0 else -.17))
             elif index in (3, 5, 6, 7):
                 rotation = _rotation((.35 + index*.03, .8, .45), time * (.11 + index*.008))
-            elif index == 4:
-                rotation = _rotation((.2, 1, .3), time * .16)
             else:
-                rotation = (_rotation((0, 1, 0), .21 * sin(time * .19 + index*.63))
-                            @ _rotation((1, 0, 0), .105 * sin(time * .23 + index*.81))
-                            @ _rotation((0, 0, 1), .14 * sin(time * .17 + index*.49)))
+                # Начальная постановочная поза остаётся постоянной, а полный
+                # оборот идёт вокруг продольной +Z канонической сетки.
+                rotation = (_rotation((0, 1, 0), .21 * sin(index*.63))
+                            @ _rotation((1, 0, 0), .105 * sin(index*.81))
+                            @ _rotation((0, 0, 1), .14 * sin(index*.49)
+                                        + time * self._roll_rates[index]))
             matrix = obj.matrix.copy()
             matrix[:3, :3] = obj.matrix[:3, :3] @ rotation
             if dock is not None:
@@ -321,11 +330,41 @@ class FlybyScene(SpaceScene):
 
     @property
     def target(self):
-        return self._camera_target.copy()
+        if self._look_yaw == self._look_pitch == 0:
+            return self._camera_target.copy()
+        return self.eye + self.forward * self.distance
 
     @property
     def forward(self):
-        return _unit(self._camera_target - self._camera_eye)
+        return self._view_basis()[2]
+
+    @property
+    def up(self):
+        """Верх постановочной камеры с учётом относительного взгляда."""
+        return self._view_basis()[1]
+
+    def _view_basis(self):
+        forward = _unit(self._camera_target - self._camera_eye)
+        right = _unit(np.cross(forward, self._camera_up))
+        up = np.cross(right, forward)
+        cy, sy = cos(self._look_yaw), sin(self._look_yaw)
+        cp, sp = cos(self._look_pitch), sin(self._look_pitch)
+        horizontal = forward * cy + right * sy
+        right = right * cy - forward * sy
+        forward = horizontal * cp + up * sp
+        return right, np.cross(right, forward), forward
+
+    def look_drag(self, dx, dy):
+        """Поворот относительно курса; маршрут камеры остаётся прежним."""
+        dx, dy = float(dx), float(dy)
+        if not (isfinite(dx) and isfinite(dy)):
+            return
+        self._look_yaw = (self._look_yaw + dx * .005 + pi) % tau - pi
+        self._look_pitch = float(np.clip(self._look_pitch - dy * .005, -pi/2 + .01, pi/2 - .01))
+
+    def reset_look(self):
+        """Только явная команда R возвращает исходное наведение."""
+        self._look_yaw = self._look_pitch = 0.0
 
     @property
     def distance(self):

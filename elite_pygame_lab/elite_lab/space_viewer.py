@@ -13,6 +13,7 @@ from .space_hud import SpaceHUD
 from .space_look import SUN_DIRECTION, SpaceLook
 from .space_assets import AssetCatalog, AssetError
 from .space_scene import SpaceScene
+from .space_zx import SpaceZXRenderer, ZX_SIZE
 
 
 _SIZE = (1360, 820)
@@ -29,6 +30,20 @@ _DEPTH_VERTEX = """#version 330
 uniform mat4 light_mvp;
 in vec3 position;
 void main() { gl_Position = light_mvp * vec4(position, 1.0); }
+"""
+_ZX_VERTEX = """#version 330
+out vec2 uv;
+void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    uv = p;
+    gl_Position = vec4(2.0 * p - 1.0, 0.0, 1.0);
+}
+"""
+_ZX_FRAGMENT = """#version 330
+uniform sampler2D bitmap;
+in vec2 uv;
+out vec4 color;
+void main() { color = vec4(vec3(texture(bitmap, uv).r), 1.0); }
 """
 
 
@@ -60,11 +75,39 @@ class MeshBuffer:
         self.buffer.release()
 
 
+class ZXScreen:
+    """Увеличение настоящего CPU bitmap ближайшим соседом, без MSAA линий."""
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.renderer = SpaceZXRenderer()
+        self.program = ctx.program(vertex_shader=_ZX_VERTEX, fragment_shader=_ZX_FRAGMENT)
+        self.program["bitmap"].value = 0
+        self.quad = ctx.vertex_array(self.program, [])
+        self.texture = ctx.texture(ZX_SIZE, 1, dtype="f1")
+        self.texture.filter = (moderngl.NEAREST, moderngl.NEAREST)
+        self.texture.repeat_x = self.texture.repeat_y = False
+
+    def draw(self, scene, size, vp):
+        frame = self.renderer.frame(scene, size, vp)
+        self.texture.write(frame.pixels[::-1].tobytes(), alignment=1)
+        self.ctx.viewport = frame.viewport
+        self.ctx.enable_only(0)
+        self.texture.use(0)
+        self.quad.render(vertices=3)
+
+    def release(self):
+        self.texture.release()
+        self.quad.release()
+        self.program.release()
+
+
 class SpaceRenderer:
     def __init__(self, ctx, scene):
         self.ctx = ctx
         self.look = SpaceLook(ctx)
         self.hud = SpaceHUD(ctx)
+        self.zx = None
         # Кеш разделяет только геометрию: ливрея и авторские материалы всегда
         # выбираются из текущего ShipAsset, в том числе у торговца и пирата.
         self.buffers = OrderedDict()
@@ -108,6 +151,14 @@ class SpaceRenderer:
                 buf.release()
 
     def _load_fleet(self, scene):
+        if scene.model_source == "zx":
+            # Каркас берётся из исходных таблиц; ни один треугольный VBO
+            # не нужен для его рёбер. Цветные ресурсы остаются в общем кеше M.
+            self.meshes = []
+            self._mesh_keys = set()
+            self._shadow_objects = self._shadow_signature = None
+            self.source = scene.model_source
+            return
         meshes, used = [], set()
         previous = set(self.buffers)
         try:
@@ -206,6 +257,19 @@ class SpaceRenderer:
         if self.source != scene.model_source:
             self._load_fleet(scene)
         vp = scene.view_projection(size[0] / size[1])
+        if scene.model_source == "zx":
+            target.use()
+            ctx.viewport = (0, 0, *size)
+            target.clear(0., 0., 0., 1., depth=1., viewport=ctx.viewport)
+            if self.zx is None:
+                self.zx = ZXScreen(ctx)
+            self.zx.draw(scene, size, vp)
+            # HUD всегда относится к полному окну: размер текстуры и hitboxes
+            # не зависят от вписанной игровой области с её квадратными пикселями.
+            ctx.viewport = (0, 0, *size)
+            if show_hud:
+                self.hud.draw(scene, size, hover, vp)
+            return
         planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
         planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
         focal = size[1] * np.linalg.norm(vp[1, :3])
@@ -255,6 +319,8 @@ class SpaceRenderer:
             self.hud.draw(scene, size, hover, vp)
 
     def release(self):
+        if self.zx is not None:
+            self.zx.release()
         self.orbit.release()
         self.orbit_buf.release()
         self.orbit_program.release()
@@ -411,7 +477,34 @@ class SpaceControls:
 
 
 class FlybyControls(SpaceControls):
-    """Автопролёт принимает команды показа, камера всегда следует сценарию."""
+    """Маршрут автоматический; ПКМ меняет только относительный взгляд."""
+
+    def __init__(self, scene, hud, show_hud):
+        super().__init__(scene, hud, show_hud)
+        self.looking = False
+        self._mouse_state = None
+
+    def _start_look(self):
+        if self.looking:
+            return
+        self.looking = True
+        self.press = None
+        self.dragging = False
+        self._mouse_state = (pygame.event.get_grab(), pygame.mouse.get_visible())
+        # SDL даёт относительные перемещения за краями окна при сочетании
+        # grab и скрытого курсора. Поворот измеряем в логических px, не retina.
+        pygame.event.set_grab(True)
+        pygame.mouse.set_visible(False)
+        pygame.mouse.get_rel()
+
+    def release(self):
+        """Отпустить захват при ПКМ, потере фокуса и любом выходе из цикла."""
+        self.looking = False
+        if self._mouse_state is not None:
+            grabbed, visible = self._mouse_state
+            self._mouse_state = None
+            pygame.event.set_grab(grabbed)
+            pygame.mouse.set_visible(visible)
 
     def _mode(self, action):
         if action == "menu_credits":
@@ -427,8 +520,10 @@ class FlybyControls(SpaceControls):
 
     def event(self, e, logical_size, drawable_size):
         if e.type == pygame.QUIT:
+            self.release()
             return False
         if e.type == pygame.WINDOWFOCUSLOST:
+            self.release()
             self.press = None
             self.dragging = False
         elif e.type == pygame.KEYDOWN:
@@ -436,6 +531,7 @@ class FlybyControls(SpaceControls):
                 if self.hud.menu:
                     self.hud.menu = None
                 else:
+                    self.release()
                     return False
             elif e.key == pygame.K_h:
                 self.show_hud = not self.show_hud
@@ -443,11 +539,19 @@ class FlybyControls(SpaceControls):
             elif e.key == pygame.K_i:
                 self.show_hud = True
                 self._mode("menu_credits")
+            elif e.key == pygame.K_r:
+                self.scene.reset_look()
             else:
                 action = {pygame.K_m: "cycle_source", pygame.K_t: "cycle_textures",
                           pygame.K_a: "toggle_auto"}.get(e.key)
                 if action:
                     self._mode(action)
+        elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 3:
+            self._start_look()
+        elif e.type == pygame.MOUSEBUTTONUP and e.button == 3:
+            self.release()
+        elif e.type == pygame.MOUSEMOTION and self.looking:
+            self.scene.look_drag(*e.rel)
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
             pixel = self._pixel(e.pos, logical_size, drawable_size)
             self.press = (e.button, e.pos, self.hud.tab_at(pixel) if self.show_hud else None)
@@ -478,11 +582,15 @@ def _save(frame, size, path):
 def run_space(model_id, screenshot, headless, show_hud, model_source="elite", texture_source="author", *,
               mode="space", source_interval=8.0, at=None):
     catalog = AssetCatalog()
-    ships = catalog.fleet(model_source)
-    if model_id is not None and model_id not in range(len(ships)):
-        raise AssetError(f"Для {model_source} доступен диапазон 0–{len(ships)-1}. Список наборов: --list-sources")
+    ships = catalog.classic if mode == "flyby" and model_source == "zx" else catalog.fleet(model_source)
+    model_count = len(ships)
+    if mode == "flyby":
+        from .space_flyby import FlybyScene
+        model_count = FlybyScene.slot_count
+    if model_id is not None and model_id not in range(model_count):
+        raise AssetError(f"Для {model_source} доступен диапазон 0–{model_count-1}. Список наборов: --list-sources")
     pygame.font.init()
-    ctx = renderer = offscreen = resolved = None
+    ctx = renderer = offscreen = resolved = controls = None
     try:
         try:
             if headless:
@@ -495,7 +603,6 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             raise SystemExit(f"Космическому атласу нужен OpenGL 3.3 Core. Не удалось открыть контекст: {exc}") from exc
         print(f"OpenGL {ctx.info['GL_VERSION']} · {ctx.info['GL_RENDERER']}", flush=True)
         if mode == "flyby":
-            from .space_flyby import FlybyScene
             scene = FlybyScene(model_id, model_source=model_source, texture_source=texture_source,
                                catalog=catalog, source_interval=source_interval)
             if at is not None:
@@ -546,6 +653,8 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             renderer.draw(scene, ctx.screen, size, controls.show_hud, hover)
             pygame.display.flip()
     finally:
+        if isinstance(controls, FlybyControls):
+            controls.release()
         for resource in (resolved, offscreen, renderer, ctx):
             if resource is not None:
                 resource.release()
