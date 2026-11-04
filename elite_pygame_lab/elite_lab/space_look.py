@@ -366,6 +366,9 @@ def _finish_heightfields(surface: bytes) -> tuple[np.ndarray, np.ndarray]:
         add_mark(int(rng.integers(size)), int(rng.integers(size)), radius,
                  aspect, rng.uniform(-np.pi, np.pi),
                  rng.uniform(.18, .33) if index < 32 else rng.uniform(.33, .49), kind)
+    # Смягчаем только крупные удары: последующие следы инструмента и зерно
+    # сохраняют прежнюю глубину вместе с видимыми потёртостями покрытия.
+    dents *= .35
     # Малая непериодичная по длине борозда не превращается в решётку.
     for _ in range(340):
         add_mark(int(rng.integers(size)), int(rng.integers(size)), rng.uniform(.8, 1.6),

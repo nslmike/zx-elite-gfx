@@ -133,7 +133,7 @@ python -m elite_lab --mode line
 видны сколы и вмятины. Viper и Fer-de-Lance сохранили ухоженную краску,
 а у Thargoid защитное стекло покрывает светящиеся сенсоры. В режиме осмотра
 нажмите **→**, чтобы перейти с торгового Python на пиратский.
-[Покрытия кораблей](previews/fleet_materials.png)
+[Первоначальные покрытия шести моделей](previews/fleet_materials.png) · [Python до и после смягчения рельефа](previews/python_relief_softening.png)
 
 Внеэкранный режим использует тот же GPU-рендерер и требует доступного
 контекста OpenGL. [Общий вид кольца](previews/space_orbit.png) · [Все 20 корпусов](previews/space_fleet.png).

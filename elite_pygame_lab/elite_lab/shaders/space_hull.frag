@@ -199,7 +199,7 @@ vec3 classic_relief(vec2 uv, vec2 old_height_xy, float damage, float equipment,
     vec2 dents = vec2(dot(slope.ba, dx), dot(slope.ba, dy));
     float scale = max(u_texture_scale, 0.5);
     float model_scale = length(u_model[0].xyz);
-    float structural = 0.0140 * u_finish_response.z / scale;
+    float structural = 0.0060 * u_finish_response.z / scale;
     float dent_depth = 0.0260 * u_finish_response.w * u_damage_profile.z / scale;
     dent_depth *= 0.40 + 0.60 * u_wear;
     // Тонкий родной G сохраняет прежнюю мировую глубину: её усиление
