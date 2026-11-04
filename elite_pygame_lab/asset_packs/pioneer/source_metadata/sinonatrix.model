@@ -1,0 +1,57 @@
+version 2
+
+material "Hull" {
+	shader "multi"
+	diffuse 1.0 1.0 1.0
+	specular 0.8 0.8 0.8
+	shininess 100
+	texture diffuse  "fuselage_diff.dds"
+	texture specular "fuselage_spec.dds"
+	texture normal   "fuselage_norm.png"
+	texture glow     "fuselage_glow.dds"
+	use_patterns
+}
+
+material "Canopy" {
+	shader "multi"
+	diffuse 1.0 1.0 1.0
+	specular 0.8 0.8 0.8
+	shininess 120
+	opacity 90
+	texture diffuse  "fuselage_diff.dds"
+	texture specular "fuselage_spec.dds"
+	texture normal   "fuselage_norm.png"
+	texture glow     "fuselage_glow.dds"
+	
+		render_state {
+		blend alpha
+		depth_write off
+	}
+}
+
+material "Engine" {
+	shader "multi"
+	diffuse 1.0 1.0 1.0
+	specular 0.4 0.4 0.4
+	shininess 80
+	texture diffuse  "engine_diff.dds"
+	texture specular "engine_spec.dds"
+	texture normal   "engine_norm.png"
+	texture glow     "engine_glow.dds"
+}
+
+lod 300 {
+	mesh "sinonatrix_hi.dae"
+}
+
+lod 100 {
+	mesh "sinonatrix_med.dae"
+}
+
+lod 50 {
+	mesh "sinonatrix_low.dae"
+}
+
+anim "gear_down" 1 100
+
+collision "sinonatrix_coll.dae"

@@ -1,0 +1,206 @@
+{
+  "author": "Griff",
+  "publication": "https://bb.oolite.space/viewtopic.php?t=21170",
+  "folder": "https://drive.google.com/drive/folders/1_8EtoVvwNyXXvqe5GCGy1HuFRRw3NxB7",
+  "archives": {
+    "cobra3-oolite": {
+      "file": "griff-cobra3-oolite.zip",
+      "sha256": "45b0063ecd43d2c55c9c9a7845ce1de8eaade612667c38f84f1132409feddae7",
+      "bytes": 78906052,
+      "url": "https://drive.google.com/file/d/1r3cDqy5qMIo2suZVioNx8HwxxLejrlW_/view",
+      "members": {
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Models/griff_HP_cobramk3.dat": {
+          "sha256": "6894eb268169b610f87f7195e88fe0abc3f898abe3b18c1cc69935730040f1ca",
+          "bytes": 1889529
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_diffuse_blue.png": {
+          "sha256": "fda4e33f407e32df33ba2eddad709fa6fc504b70d110baa1f5cc2f9cdbda58f1",
+          "bytes": 2464377
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_normal.png": {
+          "sha256": "3e5015eb1e5d71573857da7467657a8242568e27b4dce57ea5b43c61e6f5d360",
+          "bytes": 3496781
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_specgloss_blue.png": {
+          "sha256": "ca9008b3596056916afd2543d74fc0e7e3b850e1810cad753641030426dd4f1b",
+          "bytes": 4115852
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_glowmap.png": {
+          "sha256": "636232191f7400cc62e3e115bd1b1ff409349828533ca67583e873c9a70a8ca4",
+          "bytes": 797400
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_diffuse_greyred.png": {
+          "sha256": "01cacf5c64f79c20c10b9f7c71f45fccb1a85a5d5e545fa4116731f238adb383",
+          "bytes": 1358375
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Textures/griff_HP_Cobramk3_specgloss_greyred.png": {
+          "sha256": "7fc11d7258d1602c42096d53d51e7435518e0fe09599c2071236b58158538dc8",
+          "bytes": 4128932
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/licence.txt": {
+          "sha256": "a611d6ca3c69167934f3d4c3df447ad6979239cb571996e4658ad6a4309b0068",
+          "bytes": 408
+        },
+        "griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2/griff_HP_CobraMK3_v0.2.oxp/Config/shipdata.plist": {
+          "sha256": "1f10b3f49033e3fac43f39cdb83501a3ca525097268cfe98ff724f2567097b80",
+          "bytes": 14887
+        }
+      }
+    },
+    "viper-oolite": {
+      "file": "griff-viper-oolite.zip",
+      "sha256": "19329c1171a78430a40fe4298cc969e9a24d2feb5e3d9aae3adbc0315d30aeab",
+      "bytes": 10172075,
+      "url": "https://drive.google.com/file/d/1yXCDGWhK4yDeL0PQpLEI7LLI2ogLMwFW/view",
+      "members": {
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Models/griff_specgloss_viper.dat": {
+          "sha256": "64f6b1c3190bf4322d8f3808ea44e1c8955e84f4b7961b2597b88a46d892611a",
+          "bytes": 1241856
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_Hull_Diffuse.png": {
+          "sha256": "2f0cbb902a0970c6764114a375e358098a8520d026a7b0a449aaeb283a55de7c",
+          "bytes": 2431840
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_Hull_Normal.png": {
+          "sha256": "901d9aef148e68f9f8d522470b37166cba2b9421a1a45e6f67c021dc723b0bdd",
+          "bytes": 1847453
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_Hull_SpecGloss.png": {
+          "sha256": "1621171bf0b720c13145b87f4e1b29a7ec4a8eef2527c0e943375b33837353c4",
+          "bytes": 4657255
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_Hull_Emissive.png": {
+          "sha256": "246bad7697e4b0a46f97d8f93d0184b26ab279f8a2911ef1a9710279ab2c5364",
+          "bytes": 644727
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_LightStrip_Diffuse.png": {
+          "sha256": "f68b9fbba8f55ece9104d6d6e46a1df57dba40d66b0b9919f0aa3172903235ea",
+          "bytes": 80072
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_LightStrip_Normal.png": {
+          "sha256": "d8265f658eb6c8b25185a8fc7e6ab363365dac545390f5985a58f53e70a63c6b",
+          "bytes": 37850
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Textures/griff_SpecGloss_Viper_LightStrip_SpecGloss.png": {
+          "sha256": "793bd2f63beafc5677c990817fb41ab251a5c08cfcf7fdef34622f2bce27d57e",
+          "bytes": 182393
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/CC License.txt": {
+          "sha256": "cde3207f0204f9ca55c6a419340ce8ad278711e38f505cf0d68ca88dcc8d2b6c",
+          "bytes": 1273
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/manifest.plist": {
+          "sha256": "31b7c624a2489a39cdd548b862d58a98b5524483baa662403f4e5fd6f1b0718e",
+          "bytes": 1245
+        },
+        "griff_SpecGloss_Viper_Materials_v0.3/griff_SpecGloss_Viper_Materials_v0.3.oxp/Config/shipdata.plist": {
+          "sha256": "26a0db32609dedf0980dc55b00a5de1098c9665bdd97adf6e1ee80d188f2da0d",
+          "bytes": 7996
+        }
+      }
+    },
+    "sidewinder-oolite": {
+      "file": "griff-sidewinder-oolite.zip",
+      "sha256": "295c0604a773de4ca77e83d432ae8a5e373916681443c075bd77a1ef46413c07",
+      "bytes": 9142710,
+      "url": "https://drive.google.com/file/d/1tacwmQ4WcDr6kM0O4jRWzAJCjyewtvFS/view",
+      "members": {
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Models/griff_HP_Sidewinder.dat": {
+          "sha256": "48d34598cf22cb436b3407a0214274185f7996b48eb6ae427e7adabba766cd0c",
+          "bytes": 1131545
+        },
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Textures/griff_HP_Sidewinder_albedo.png": {
+          "sha256": "cbb342021918a132c45ac0b84bca5a3603d9e5463766e40f5b1d944b78ce991b",
+          "bytes": 1746587
+        },
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Textures/griff_HP_Sidewinder_normals.png": {
+          "sha256": "0c405bc7ff94fb311c820b1a4bc3221826c2b0406a5d1a4395cee83c9403b25a",
+          "bytes": 1892158
+        },
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Textures/griff_HP_Sidewinder_Specgloss.png": {
+          "sha256": "c217c378350cc3837ab4524167ad48ae7025594228aacd9a8d4d3ef46318c92e",
+          "bytes": 3539419
+        },
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Textures/griff_HP_Sidewinder_engineglow.png": {
+          "sha256": "0fbe29ec922b38fa31df628cd3ddb51562a09dd5169ab28789f01c91d62f0138",
+          "bytes": 1724303
+        },
+        "griff_HP_Sidewinder_NPC_Materials.oxp/Config/shipdata.plist": {
+          "sha256": "4847199173ac6a7761300f5dd5f68f09fbaa39e53eb84301223f06629d9d37ee",
+          "bytes": 841
+        }
+      }
+    }
+  },
+  "notices": {
+    "sidewinder-folder-license": {
+      "url": "https://drive.google.com/file/d/13iha6rYEWwpO-cqmBfVf2nRTXcsLyJ0j/view",
+      "sha256": "cde3207f0204f9ca55c6a419340ce8ad278711e38f505cf0d68ca88dcc8d2b6c"
+    },
+    "root-folder-license": {
+      "url": "https://drive.google.com/file/d/1J0J7AEgD1cl1znDLOiklBDKSgl5eFnZz/view",
+      "sha256": "cde3207f0204f9ca55c6a419340ce8ad278711e38f505cf0d68ca88dcc8d2b6c"
+    }
+  },
+  "meshes": {
+    "cobra3": {
+      "triangles": 11506,
+      "material_names": [
+        "Hull"
+      ],
+      "source_bbox_centre": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source_radius": 81.06018756505871,
+      "uv_degenerate_triangles": 120,
+      "basis_check": {
+        "nondegenerate_triangles": 11386,
+        "min_dot_T_gl_M_T_source": 0.9999999999999996,
+        "max_dot_cross_NT_gl_M_cross_NT_source": -0.9999999999999993
+      }
+    },
+    "viper": {
+      "triangles": 7800,
+      "material_names": [
+        "Hull",
+        "LightStrip"
+      ],
+      "source_bbox_centre": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source_radius": 34.6831060921726,
+      "uv_degenerate_triangles": 0,
+      "basis_check": {
+        "nondegenerate_triangles": 7800,
+        "min_dot_T_gl_M_T_source": 0.9999999999999996,
+        "max_dot_cross_NT_gl_M_cross_NT_source": -0.9999999999999993
+      }
+    },
+    "sidewinder": {
+      "triangles": 7266,
+      "material_names": [
+        "Hull"
+      ],
+      "source_bbox_centre": [
+        0.0,
+        0.35257499999999986,
+        1.0783000000000005
+      ],
+      "source_radius": 40.95673230923855,
+      "uv_degenerate_triangles": 0,
+      "basis_check": {
+        "nondegenerate_triangles": 7266,
+        "min_dot_T_gl_M_T_source": 0.9999999999999996,
+        "max_dot_cross_NT_gl_M_cross_NT_source": -0.9999999999999993
+      }
+    }
+  },
+  "max_texture": 1024,
+  "normal_basis": "cross(N,T)",
+  "normal_conversion": "invert G, resize, renormalize",
+  "specular_conversion": "sRGB RGB -> pow(rgb/255, 2.2) linear RGB; alpha -> linear gloss_map"
+}

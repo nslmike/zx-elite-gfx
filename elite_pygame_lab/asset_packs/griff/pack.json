@@ -1,0 +1,108 @@
+{
+  "id": "griff",
+  "title": "Griff SpecGloss",
+  "author": "Griff",
+  "license": "CC BY-NC-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "source": "https://bb.oolite.space/viewtopic.php?t=21170",
+  "normal_basis": "cross(N,T)",
+  "models": {
+    "9": {
+      "name": "Cobra Mk III (blue Trader)",
+      "mesh": "cobra3.npz",
+      "materials": [
+        {
+          "gloss": 1.0,
+          "specular_color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuse": "cobra3_diffuse.png",
+          "normal": "cobra3_normal.png",
+          "gloss_map": "cobra3_gloss.png",
+          "specular": "cobra3_specular.png",
+          "emission": "cobra3_emission.png"
+        }
+      ],
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    },
+    "12": {
+      "name": "Cobra Mk III (grey-red Pirate)",
+      "mesh": "cobra3.npz",
+      "materials": [
+        {
+          "gloss": 1.0,
+          "specular_color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuse": "cobra3_pirate_diffuse.png",
+          "normal": "cobra3_normal.png",
+          "gloss_map": "cobra3_pirate_gloss.png",
+          "specular": "cobra3_pirate_specular.png",
+          "emission": "cobra3_emission.png"
+        }
+      ],
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    },
+    "8": {
+      "name": "GalCop Viper",
+      "mesh": "viper.npz",
+      "materials": [
+        {
+          "gloss": 1.0,
+          "specular_color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuse": "viper_hull_diffuse.png",
+          "normal": "viper_hull_normal.png",
+          "gloss_map": "viper_hull_gloss.png",
+          "specular": "viper_hull_specular.png",
+          "emission": "viper_hull_emission.png"
+        },
+        {
+          "gloss": 1.0,
+          "specular_color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuse": "viper_lightstrip_diffuse.png",
+          "normal": "viper_lightstrip_normal.png",
+          "gloss_map": "viper_lightstrip_gloss.png",
+          "specular": "viper_lightstrip_specular.png"
+        }
+      ],
+      "license": "CC BY-NC-SA 4.0 (манифест), CC BY-NC 4.0 (файл лицензии)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "notice_license_url": "https://creativecommons.org/licenses/by-nc/4.0/"
+    },
+    "16": {
+      "name": "Sidewinder",
+      "mesh": "sidewinder.npz",
+      "materials": [
+        {
+          "gloss": 1.0,
+          "specular_color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuse": "sidewinder_diffuse.png",
+          "normal": "sidewinder_normal.png",
+          "gloss_map": "sidewinder_gloss.png",
+          "specular": "sidewinder_specular.png",
+          "emission": "sidewinder_emission.png"
+        }
+      ],
+      "license": "CC BY-NC-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    }
+  }
+}

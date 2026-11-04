@@ -1,0 +1,28 @@
+{
+// ++++++          Griff High Poly Sidewinder NPC           ++++++
+	"griff_HP_Sidewinder_npc" = 
+		{
+		like_ship = "oolite_template_sidewinder";
+		ai_type = "oolite-pirateAI.js";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -10.5225 -12.40";
+		exhaust = ("0.0 -0.025 -14.0221 7.0 5.0 1.0");
+		materials =
+		{
+			"Hull" =
+			{
+				diffuse_map = "griff_HP_Sidewinder_albedo.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Sidewinder_normals.png";
+				specular_map = "griff_HP_Sidewinder_Specgloss.png";
+				emission_map = "griff_HP_Sidewinder_engineglow.png";
+			};
+		};	
+		name = "Sidewinder";	
+		missile_launch_position = "0.0 -3.4728 14.6737";
+		model = "griff_HP_Sidewinder.dat"; 
+		roles = "pirate(0.75) pirate-light-fighter(0.25) hunter";
+		};	
+}

@@ -1,0 +1,414 @@
+{
+// ++++++          Griff High Poly Cobra Mk3 NPC Blue - Trader         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-blue" = 
+		{
+		like_ship = "oolite_template_cobra3-trader";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_blue.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_blue.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Green - Trader         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-green" = 
+		{
+		like_ship = "oolite_template_cobra3-trader";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_green.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_green.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+		
+// ++++++          Griff High Poly Cobra Mk3 NPC Green (with chevrons pattern)        ++++++
+	"griff_HP_Cobramk3-NPC_Materials-green_chevrons" = 
+		{
+		like_ship = "oolite_template_cobra3-alternate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_greenchevron.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_greenchevron.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};			
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Grey Red - Pirate       ++++++
+	"griff_HP_Cobramk3-NPC_Materials-grey-red" = 
+		{
+		like_ship = "oolite_template_cobra3-pirate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_greyred.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_greyred.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Orange - Miner Hermit         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-miner" = 
+		{
+		like_ship = "oolite_template_cobra3-alternate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_miner.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal_miner.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_miner.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		roles = "hermit-ship scavenger sunskim-trader";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Orange with chevrons Hermit and Trader       ++++++
+	"griff_HP_Cobramk3-NPC_Materials-orange_chevrons" = 
+		{
+		like_ship = "oolite_template_cobra3-alternate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_orangechevrongradient.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_orangechevronegradient.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		roles = "trader(0.375) trader-courier(0.2) hermit-ship scavenger";
+		
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Purple pattern - PIRATE         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-purplehaze" = 
+		{
+		like_ship = "oolite_template_cobra3-pirate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_purplehaze.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_purplehaze.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 NPC red gradient - PIRATE         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-redgradient" = 
+		{
+		like_ship = "oolite_template_cobra3-pirate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_redgradient.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_redgradient.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 NPC Wireframe retro paint pattern         ++++++
+	"griff_HP_Cobramk3-NPC_Materials-wireframe" = 
+		{
+		like_ship = "oolite_template_cobra3-alternate";
+		auto_ai = yes;	
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_wireframe.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_wireframe.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";	
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		scoop_position = "0.0 -14.8897 6.5176";
+		roles = "hermit-ship scavenger sunskim-trader";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+
+// ++++++          Griff High Poly Cobra Mk3 PLAYER  Materials       ++++++
+	"griff_HP_Cobramk3-Player_Materials" = 
+		{
+		like_ship = "oolite_template_cobra3";
+		aft_eject_position = "0.0 -19.8929 -47.5578";
+		custom_views =
+				(
+					{
+						view_description = "Rear View";
+						view_orientation = "1.0 0.0 0.0 0.0";
+						view_position = "0.0 25.0 -400.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Rear Right View";
+						view_orientation = "0.9239 0.0 0.3827 0.0";
+						view_position = "282.8427 25.0 -282.8427";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Right View";
+						view_orientation = "0.7071 0.0 0.7071 0.0";
+						view_position = "400. 25.0 0.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front Right View";
+						view_orientation = "0.3827 0.0 0.9239 0.0";
+						view_position = "282.8427 25.0 282.8427";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front View";
+						view_orientation = "0.0 0.0 1.0 0.0";
+						view_position = "0.0 25.0 400";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front Left View";
+						view_orientation = "0.3827 0.0 -0.9239 0.0";
+						view_position = "-282.8427 25.0 282.8427";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Left View";
+						view_orientation = "0.7071 0.0 -0.7071 0.0";
+						view_position = "-400.0 25.0 0.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Rear Left View";
+						view_orientation = "0.9239 0.0 -0.3827 0.0";
+						view_position = "-282.8427 25.0 -282.8427";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Top View";
+						view_orientation = "-0.7071 0.7071 0.0 0.0";
+						view_position = "0.0 440.0 5.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Bottom View";
+						view_orientation = "0.0 0.0 0.7071 0.7071";
+						view_position = "0.0 -440.0 5.0";
+						weapon_facing = "FORWARD";
+					}
+				);		
+		exhaust = (	"17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-17.1546 0.176 -36.266 9.3 6.0 0.9",
+				   "-48.6089 0.267 -35.694 3.0 2.0 0.6",    // small side engine port
+					"48.6089 0.267 -35.694 3.0 2.0 0.6"    // small side engine starboard
+				   );
+		materials =
+		{
+		"Hull" =
+			{
+				diffuse_map = "griff_HP_Cobramk3_diffuse_blue.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_HP_Cobramk3_normal.png";
+				specular_map = "griff_HP_Cobramk3_specgloss_blue.png";
+				emission_map = "griff_HP_Cobramk3_glowmap.png";
+			};
+		};	
+		name = "Cobra Mark III";
+		missile_launch_position = "0.0 -13.9897 26.6176";
+		model = "griff_HP_cobramk3.dat"; 
+		roles = "player";
+		scoop_position = "0.0 -14.8897 6.5176";
+		view_position_aft = "0.0 6.6296 -39.0927";
+		view_position_forward = "0.0 2.7765 34.7565";
+		view_position_port = "-42.3705 1.0824 2.8634";
+		view_position_starboard = "42.3705 1.0824 2.8634";
+		weapon_facings = 3;
+		weapon_position_forward = "0.0 0.527 39.2965";
+		weapon_position_aft = "0.0 3.6166 -36.0042";
+		weapon_position_port = "-44.7466 -1.2725 5.4489";
+		weapon_position_starboard = "44.7466 -1.2725 5.4489";
+		};	
+}

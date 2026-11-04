@@ -1,0 +1,899 @@
+{
+  "id": "oolite",
+  "title": "Oolite",
+  "author": "Griff, CaptSolo, another_commander и участники Oolite",
+  "license": "CC BY-NC-SA 3.0",
+  "license_spdx": "CC-BY-NC-SA-3.0",
+  "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+  "source": "https://github.com/OoliteProject/oolite/tree/28ceaaba0d79d0b6ea1c044c6235e3616b170098",
+  "revision": "28ceaaba0d79d0b6ea1c044c6235e3616b170098",
+  "attribution": "attribution/README.md",
+  "normal_basis": "cross(N,T)",
+  "tangent_axis": "+dP/dU",
+  "models": {
+    "0": {
+      "name": "Coriolis",
+      "mesh": "coriolis-station.npz",
+      "materials": [
+        {
+          "name": "oolite_coriolis_diffuse.png",
+          "diffuse": "textures/diffuse_233e91c8144e.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_diffuse.png",
+          "normal": "textures/normal_a868aa793ec9.png",
+          "specular": "textures/specular_5aff30cbfb6d.png",
+          "gloss_map": "textures/gloss_1ef27b2009c2.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_6d4c07daf85d.png",
+          "emission_strength": 26.59201176470588,
+          "procedural_type": 0
+        },
+        {
+          "name": "oolite_coriolis_faceplate_diffuse.png",
+          "diffuse": "textures/diffuse_9f961a186f83.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_faceplate_diffuse.png",
+          "normal": "textures/normal_0b41e7db4010.png",
+          "specular": "textures/specular_54abb30329f1.png",
+          "gloss_map": "textures/gloss_5225f681295f.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_cdab157eb286.png",
+          "emission_strength": 26.59201176470588,
+          "procedural_type": 0
+        },
+        {
+          "name": "oolite_coriolis_tris_diffuse.png",
+          "diffuse": "textures/diffuse_0faedfc9d861.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_tris_diffuse.png",
+          "normal": "textures/normal_6ee24e817654.png",
+          "specular": "textures/specular_0d355af1bdd7.png",
+          "gloss_map": "textures/gloss_e00b87821ff7.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_2fe684445cc2.png",
+          "emission_strength": 26.59201176470588,
+          "procedural_type": 0
+        },
+        {
+          "name": "oolite_coriolis_dock_diffuse.png",
+          "diffuse": "textures/diffuse_aa26ec88c42b.jpg",
+          "gloss": 0.55,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_dock_diffuse.png",
+          "normal": "textures/normal_a4a637506270.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "emission": "textures/emission_e9bef462712e.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        }
+      ],
+      "author": "Griff, CaptSolo, PAGroove и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis.dat",
+      "shipdata_key": "oolite_template_coriolis-station",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_faceplate.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_tris.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_dock.dat"
+      ],
+      "triangles": 2226
+    },
+    "1": {
+      "name": "Missile",
+      "mesh": "missile.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_72b8d3cadc6d.jpg",
+          "gloss": 0.62,
+          "shininess": 60.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_missile_diffuse.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "emission": "textures/emission_787bd5f072e7.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_missile.dat",
+      "shipdata_key": "oolite_template_missile",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_missile.dat"
+      ],
+      "triangles": 190
+    },
+    "2": {
+      "name": "Escape pod",
+      "mesh": "escape-capsule.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_4cb68a5b50e0.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_escape_capsule_diffuse.png",
+          "normal": "textures/normal_dcc73c0ca0ba.png",
+          "specular": "textures/specular_a7bf8f0b4fb1.png",
+          "gloss_map": "textures/gloss_b20cc92ee898.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_4405594172e0.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_escape_capsule.dat",
+      "shipdata_key": "oolite_template_escape-capsule",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_escape_capsule.dat"
+      ],
+      "triangles": 788
+    },
+    "3": {
+      "name": "Splinter",
+      "mesh": "splinter.npz",
+      "materials": [
+        {
+          "name": "oolite_splinter_diffuse.png",
+          "diffuse": "textures/diffuse_229a0b7b3fd4.jpg",
+          "gloss": 0.5,
+          "shininess": 29.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_splinter_diffuse.png",
+          "specular_color": [
+            0.3,
+            0.3,
+            0.3
+          ],
+          "procedural_type": 5
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_splinter.dat",
+      "shipdata_key": "oolite_template_splinter",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_splinter.dat"
+      ],
+      "triangles": 24
+    },
+    "4": {
+      "name": "Cargo canister",
+      "mesh": "barrel.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_3ec149ccf52a.jpg",
+          "gloss": 0.85,
+          "shininess": 60.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_barrel_diffuse.png",
+          "normal": "textures/normal_7817155c022c.png",
+          "specular": "textures/specular_03cf6e4b0ef0.png",
+          "gloss_map": "textures/gloss_9f3ace0536e8.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_barrel.dat",
+      "shipdata_key": "oolite_template_barrel",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_barrel.dat"
+      ],
+      "triangles": 156
+    },
+    "5": {
+      "name": "Boulder",
+      "mesh": "boulder.npz",
+      "materials": [
+        {
+          "name": "oolite_boulder_diffuse.png",
+          "diffuse": "textures/diffuse_deaa476e3a61.jpg",
+          "gloss": 0.5,
+          "shininess": 29.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_boulder_diffuse.png",
+          "specular_color": [
+            0.3,
+            0.3,
+            0.3
+          ],
+          "procedural_type": 5
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_boulder.dat",
+      "shipdata_key": "oolite_template_boulder",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_boulder.dat"
+      ],
+      "triangles": 80
+    },
+    "6": {
+      "name": "Asteroid",
+      "mesh": "asteroid.npz",
+      "materials": [
+        {
+          "name": "oolite_asteroid_diffuse.png",
+          "diffuse": "textures/diffuse_87359fcc9237.jpg",
+          "gloss": 0.322,
+          "shininess": 29.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asteroid_diffuse.png",
+          "normal": "textures/normal_75746e4af5be.png",
+          "specular_color": [
+            0.3,
+            0.3,
+            0.3
+          ],
+          "procedural_type": 5
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asteroid.dat",
+      "shipdata_key": "oolite_template_asteroid",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asteroid.dat"
+      ],
+      "triangles": 360
+    },
+    "7": {
+      "name": "Rock Hermit",
+      "mesh": "rock-hermit.npz",
+      "materials": [
+        {
+          "name": "oolite_rock_hermit_diffuse.png",
+          "diffuse": "textures/diffuse_ac3d71775708.jpg",
+          "gloss": 0.5,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_diffuse.png",
+          "normal": "textures/normal_65a40e6aeece.png",
+          "specular": "textures/specular_6c9d9ec450c8.png",
+          "gloss_map": "textures/gloss_2262bdb7fd9a.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_20e09da7c539.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "oolite_rock_hermit_rock_diffuse.png",
+          "diffuse": "textures/diffuse_8a7296e08df2.jpg",
+          "gloss": 0.322,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_rock_diffuse.png",
+          "normal": "textures/normal_fed946347d4f.png",
+          "specular_color": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "procedural_type": 5
+        },
+        {
+          "name": "oolite_rock_hermit_pipes_diffuse.png",
+          "diffuse": "textures/diffuse_6d902a2b0146.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_pipes_diffuse.png",
+          "normal": "textures/normal_8aa079079fa1.png",
+          "specular": "textures/specular_16d75ca6b79b.png",
+          "gloss_map": "textures/gloss_e29a6fac8d9d.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_6ec935c225d3.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "oolite_rock_hermit_tunnel_extras_diffuse.png",
+          "diffuse": "textures/diffuse_2eb1002dd803.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_tunnel_extras_diffuse.png",
+          "normal": "textures/normal_c727f89dd8c0.png",
+          "specular": "textures/specular_f4d2fa0d719c.png",
+          "gloss_map": "textures/gloss_93e663f4103e.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_38aaf7347297.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "oolite_rock_hermit_dock_diffuse.png",
+          "diffuse": "textures/diffuse_175817205907.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_dock_diffuse.png",
+          "normal": "textures/normal_cfab0478f833.png",
+          "specular": "textures/specular_707e71623658.png",
+          "gloss_map": "textures/gloss_b85b0ef5f9ad.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_9458847fd337.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        }
+      ],
+      "author": "Griff, CaptSolo, Killer Wolf и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit.dat",
+      "shipdata_key": "oolite_template_rock-hermit",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_rock.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_pipes.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_tunnel_extras.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_dock.dat"
+      ],
+      "triangles": 2586
+    },
+    "8": {
+      "name": "Viper",
+      "mesh": "viper.npz",
+      "materials": [
+        {
+          "name": "Engine",
+          "diffuse": "textures/diffuse_023fff406d15.jpg",
+          "gloss": 0.55,
+          "shininess": 45.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_viper_diffuse.png",
+          "specular_color": [
+            0.6,
+            0.5,
+            0.5
+          ],
+          "emission": "textures/emission_e1a5235f9a6b.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_023fff406d15.jpg",
+          "gloss": 0.55,
+          "shininess": 45.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_viper_diffuse.png",
+          "normal": "textures/normal_373a5bbc9a2a.png",
+          "specular_color": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "emission": "textures/emission_e1e6607f2071.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_viper.dat",
+      "shipdata_key": "oolite_template_viper",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_viper.dat"
+      ],
+      "triangles": 699
+    },
+    "9": {
+      "name": "Cobra Mk III (торговая)",
+      "mesh": "cobra3.npz",
+      "materials": [
+        {
+          "name": "Gun",
+          "diffuse": "textures/diffuse_c12632cdc0d5.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_subents.png",
+          "normal": "textures/normal_3b53378c9966.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_1f1ec76530f4.jpg",
+          "gloss": 0.8,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_diffuse.png",
+          "normal": "textures/normal_47bc2ed1cd14.png",
+          "specular": "textures/specular_d1ae764720d4.png",
+          "gloss_map": "textures/gloss_1316c26eb913.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_47bf35a1e0e1.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_cobra3.dat",
+      "shipdata_key": "oolite_template_cobra3",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_cobra3.dat"
+      ],
+      "triangles": 1076
+    },
+    "10": {
+      "name": "Python (торговый)",
+      "mesh": "python-trader.npz",
+      "materials": [
+        {
+          "name": "Engines",
+          "diffuse": "textures/diffuse_547aa732f071.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents_trader.png",
+          "normal": "textures/normal_523ce32cc57b.png",
+          "specular": "textures/specular_3202d9607be4.png",
+          "gloss_map": "textures/gloss_ad098386727c.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_078b63c26cd1.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_5f806b17c318.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_diffuse_trader.png",
+          "normal": "textures/normal_74990d3c926e.png",
+          "specular": "textures/specular_5b807103a431.png",
+          "gloss_map": "textures/gloss_83b337310b27.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_6fa81b07a3e5.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python_trader.dat",
+      "shipdata_key": "oolite_template_python-trader",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python_trader.dat"
+      ],
+      "triangles": 1206
+    },
+    "11": {
+      "name": "Python (пиратский)",
+      "mesh": "python.npz",
+      "materials": [
+        {
+          "name": "Engine",
+          "diffuse": "textures/diffuse_3247f4ee03ab.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents.png",
+          "normal": "textures/normal_c980c3516574.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "emission": "textures/emission_2483be867680.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "Gun",
+          "diffuse": "textures/diffuse_3247f4ee03ab.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents.png",
+          "normal": "textures/normal_c980c3516574.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_c235ede6f3a7.jpg",
+          "gloss": 0.75,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_diffuse.png",
+          "normal": "textures/normal_34ebf5bbf3bd.png",
+          "specular": "textures/specular_47fb1158eb75.png",
+          "gloss_map": "textures/gloss_f40c1045728c.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_80b2971b7860.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python.dat",
+      "shipdata_key": "oolite_template_python",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python.dat"
+      ],
+      "triangles": 916
+    },
+    "12": {
+      "name": "Cobra Mk III (пиратская)",
+      "mesh": "cobra3.npz",
+      "materials": [
+        {
+          "name": "Gun",
+          "diffuse": "textures/diffuse_c12632cdc0d5.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_subents.png",
+          "normal": "textures/normal_3b53378c9966.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_bcef49aefddb.jpg",
+          "gloss": 0.8,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_diffuse_pirate.png",
+          "normal": "textures/normal_47bc2ed1cd14.png",
+          "specular": "textures/specular_d1ae764720d4.png",
+          "gloss_map": "textures/gloss_1316c26eb913.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_47bf35a1e0e1.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_cobra3.dat",
+      "shipdata_key": "oolite_template_cobra3-pirate",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_cobra3.dat"
+      ],
+      "triangles": 1076
+    },
+    "13": {
+      "name": "Asp Mk II",
+      "mesh": "asp.npz",
+      "materials": [
+        {
+          "name": "Gun",
+          "diffuse": "textures/diffuse_2a6b606ed2b0.jpg",
+          "gloss": 0.622,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_subents.png",
+          "specular_color": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_ca07cd7147ed.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_diffuse.png",
+          "normal": "textures/normal_98e5c48ad63d.png",
+          "specular": "textures/specular_77ed93b3e5e3.png",
+          "gloss_map": "textures/gloss_173309819d8d.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_6b03e83fac89.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asp.dat",
+      "shipdata_key": "oolite_template_asp",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asp.dat"
+      ],
+      "triangles": 726
+    },
+    "14": {
+      "name": "Fer-de-Lance",
+      "mesh": "ferdelance.npz",
+      "materials": [
+        {
+          "name": "Engine",
+          "diffuse": "textures/diffuse_4156d77e71a3.jpg",
+          "gloss": 1.0,
+          "shininess": 29.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_subents.png",
+          "normal": "textures/normal_7f38f5623fb2.png",
+          "specular": "textures/specular_bcf7070bf0bd.png",
+          "gloss_map": "textures/gloss_a3ba1f7063a6.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_fdc74e37e887.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        },
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_e8dd46c92c00.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_diffuse.png",
+          "normal": "textures/normal_486de8d596fa.png",
+          "specular": "textures/specular_6877db4d00bc.png",
+          "gloss_map": "textures/gloss_d3f5941618ac.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_7855002d0aa1.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_ferdelance.dat",
+      "shipdata_key": "oolite_template_ferdelance",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_ferdelance.dat"
+      ],
+      "triangles": 601
+    },
+    "15": {
+      "name": "Thargoid",
+      "mesh": "thargoid.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_d3a61fbd7145.jpg",
+          "gloss": 0.85,
+          "shininess": 49.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargoid_diffuse.png",
+          "normal": "textures/normal_532480ccb01f.png",
+          "specular": "textures/specular_45fbbba99634.png",
+          "gloss_map": "textures/gloss_812778a2604e.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_dba2feb87edb.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargoid.dat",
+      "shipdata_key": "oolite_template_thargoid",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargoid.dat"
+      ],
+      "triangles": 624
+    },
+    "16": {
+      "name": "Sidewinder",
+      "mesh": "sidewinder.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_4321e5eada78.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_sidewinder_diffuse.png",
+          "normal": "textures/normal_f9424e395cc4.png",
+          "specular": "textures/specular_0fa9698b03ef.png",
+          "gloss_map": "textures/gloss_881f4b4c39a6.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_7343e582edeb.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_sidewinder.dat",
+      "shipdata_key": "oolite_template_sidewinder",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_sidewinder.dat"
+      ],
+      "triangles": 762
+    },
+    "17": {
+      "name": "Krait",
+      "mesh": "krait.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_7280199fb5c5.jpg",
+          "gloss": 0.9,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_krait_diffuse.png",
+          "normal": "textures/normal_dd7a0cd31e79.png",
+          "specular": "textures/specular_6a69db309606.png",
+          "gloss_map": "textures/gloss_79e4b18e1c81.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_1123b7b92364.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_krait.dat",
+      "shipdata_key": "oolite_template_krait",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_krait.dat"
+      ],
+      "triangles": 1509
+    },
+    "18": {
+      "name": "Thargon",
+      "mesh": "tharglet.npz",
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "textures/diffuse_ac190202860e.jpg",
+          "gloss": 1.0,
+          "shininess": 49.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargon_diffuse.png",
+          "normal": "textures/normal_d789f63ebbbf.png",
+          "specular": "textures/specular_5941ab6eec39.png",
+          "gloss_map": "textures/gloss_889aa944cb7a.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_0fbdb6da38bd.png",
+          "emission_strength": 1,
+          "procedural_type": 0
+        }
+      ],
+      "author": "Griff, CaptSolo, another_commander и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargon.dat",
+      "shipdata_key": "oolite_template_tharglet",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargon.dat"
+      ],
+      "triangles": 157
+    },
+    "19": {
+      "name": "Dodo · Oolite Dodecahedron Station",
+      "mesh": "dodecahedron-station.npz",
+      "materials": [
+        {
+          "name": "oolite_dodo_diffuse.png",
+          "diffuse": "textures/diffuse_5283f910c35c.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_diffuse.png",
+          "normal": "textures/normal_08cbeed85fde.png",
+          "specular": "textures/specular_3c0fd89ed65f.png",
+          "gloss_map": "textures/gloss_f2204e06ec67.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_ce90c1d1e280.png",
+          "emission_strength": 26.59201176470588,
+          "procedural_type": 0
+        },
+        {
+          "name": "oolite_dodo_faceplate_diffuse.png",
+          "diffuse": "textures/diffuse_64813002af42.jpg",
+          "gloss": 1.0,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_faceplate_diffuse.png",
+          "normal": "textures/normal_cc25819b6612.png",
+          "specular": "textures/specular_d271f1f22408.png",
+          "gloss_map": "textures/gloss_50a759080d85.png",
+          "specular_color": [
+            1,
+            1,
+            1
+          ],
+          "emission": "textures/emission_2717e80e44c7.png",
+          "emission_strength": 26.59201176470588,
+          "procedural_type": 0
+        },
+        {
+          "name": "oolite_dodo_dock_diffuse.png",
+          "diffuse": "textures/diffuse_87f5582fa9f4.jpg",
+          "gloss": 0.65,
+          "shininess": 42.0,
+          "source_diffuse": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_dock_diffuse.png",
+          "normal": "textures/normal_7a1590b2b16b.png",
+          "specular_color": [
+            0.25,
+            0.25,
+            0.25
+          ],
+          "emission": "textures/emission_e4c2e0b2519c.png",
+          "emission_strength": 1,
+          "procedural_type": 1
+        }
+      ],
+      "author": "Griff, CaptSolo, PAGroove и участники Oolite",
+      "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo.dat",
+      "shipdata_key": "oolite_template_dodecahedron-station",
+      "source_meshes": [
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo_faceplate.dat",
+        "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo_dock.dat"
+      ],
+      "triangles": 2912
+    }
+  }
+}

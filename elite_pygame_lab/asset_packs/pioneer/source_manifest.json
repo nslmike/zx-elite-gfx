@@ -1,0 +1,314 @@
+{
+  "repository": "https://github.com/pioneerspacesim/pioneer",
+  "revision": "7506ef474e060c129fe27349f279895b2a5d8ed9",
+  "sources": [
+    {
+      "path": "AUTHORS.txt",
+      "sha256": "bb9f1c443f4660e0f641b4938c854a9b742f9a106717f46f554d2f2695499e11",
+      "bytes": 8409,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/AUTHORS.txt"
+    },
+    {
+      "path": "licenses/CC-BY-SA-3.0.txt",
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "bytes": 22240,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/licenses/CC-BY-SA-3.0.txt"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/sinonatrix.model",
+      "sha256": "03a5c09895525680df38267fa21878d59c681e02141bfec0dfd0da895d57569f",
+      "bytes": 1001,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/sinonatrix.model"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/sinonatrix_cockpit.model",
+      "sha256": "150c2e36cb25014a9b357031c0643403823dba6c8cf6c470bf4ff82f0c31a72d",
+      "bytes": 1210,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/sinonatrix_cockpit.model"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/sinonatrix_hi.dae",
+      "sha256": "3537e997b746747a9beaba4fb314b56a0894c76e8951e2967aa9562d36e9da27",
+      "bytes": 6158585,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/sinonatrix_hi.dae"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/sinonatrix_med.dae",
+      "sha256": "c7e323ed3d72d4d410ef0565316340d919ae3ed8fbe213a05078ea04f7db3457",
+      "bytes": 1637630,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/sinonatrix_med.dae"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/sinonatrix_low.dae",
+      "sha256": "73146a5ad1ed1f5c573f45aec2fbfd4d199906248044a7ae49af07015249daba",
+      "bytes": 1131535,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/sinonatrix_low.dae"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/engine_diff.dds",
+      "sha256": "b2af67206d7f919ce511301fbf7bba4b3ae56837a923e00435c4f49d3fc047b3",
+      "bytes": 349568,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/engine_diff.dds"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/engine_glow.dds",
+      "sha256": "b830fb322c80b41f19b902ed71887e3da9a9924a774287d1beb321d1d537d91c",
+      "bytes": 349568,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/engine_glow.dds"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/engine_norm.png",
+      "sha256": "25393a33d5725b1b38060aeeb48b36d839be905ab61b0c3d283ba76f19194614",
+      "bytes": 65025,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/engine_norm.png"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/engine_spec.dds",
+      "sha256": "fb5e04c90e09e6679b45f143c0aa1e6b9c09faa71bf52111cb2e84c85833e078",
+      "bytes": 349568,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/engine_spec.dds"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/fuselage_diff.dds",
+      "sha256": "88e6f4ea05c9823e8772a72dc94c3bda83db0316095a2f1aec106bd1f60b4d78",
+      "bytes": 1398144,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/fuselage_diff.dds"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/fuselage_glow.dds",
+      "sha256": "701473acf5e67764989b160fb3421fb8044f330d1c152e2b95c113862e636a30",
+      "bytes": 1398144,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/fuselage_glow.dds"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/fuselage_norm.png",
+      "sha256": "90d291944df0401f4dc1f1a87a30e57774489c3f766c7df17d0d4232589bdebf",
+      "bytes": 1084143,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/fuselage_norm.png"
+    },
+    {
+      "path": "data/models/ships/sinonatrix/fuselage_spec.dds",
+      "sha256": "48e1f219f398850129c52c363e2e858cedc7a53b00f4e18f55dede9fd51d045f",
+      "bytes": 1398144,
+      "url": "https://raw.githubusercontent.com/pioneerspacesim/pioneer/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix/fuselage_spec.dds"
+    }
+  ],
+  "normalization": {
+    "axis_rotation": [
+      [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ]
+    ],
+    "center_before_scale": [
+      -1.3663959395060488e-06,
+      0.0,
+      1.8847019236058733
+    ],
+    "radius_before_scale": 11.34801136724839,
+    "same_for_all_lods": true
+  },
+  "meshes": {
+    "hi": {
+      "instances": 63,
+      "animated_nodes_frame_1": 31,
+      "ignored_line_primitives": 4,
+      "flipped_mirrored_triangles": 0,
+      "removed_degenerate_triangles": 1,
+      "repaired_unbound_primitives": 0,
+      "repaired_normal_winding_triangles": 18,
+      "triangles": 49804,
+      "triangles_per_material": {
+        "Hull": 44006,
+        "Canopy": 1472,
+        "Engine": 4326
+      },
+      "bounds": [
+        [
+          -0.47439512610435486,
+          -0.19730030000209808,
+          -0.9862427711486816
+        ],
+        [
+          0.4743953347206116,
+          0.19730030000209808,
+          0.9863959550857544
+        ]
+      ],
+      "radius": 0.9999338388442993
+    },
+    "med": {
+      "instances": 50,
+      "animated_nodes_frame_1": 31,
+      "ignored_line_primitives": 4,
+      "flipped_mirrored_triangles": 0,
+      "removed_degenerate_triangles": 0,
+      "repaired_unbound_primitives": 4,
+      "repaired_normal_winding_triangles": 3,
+      "triangles": 13264,
+      "triangles_per_material": {
+        "Hull": 12028,
+        "Canopy": 0,
+        "Engine": 1236
+      },
+      "bounds": [
+        [
+          -0.4747689664363861,
+          -0.19669675827026367,
+          -0.9863959550857544
+        ],
+        [
+          0.4747689664363861,
+          0.19669675827026367,
+          0.9863959550857544
+        ]
+      ],
+      "radius": 1.0
+    },
+    "low": {
+      "instances": 50,
+      "animated_nodes_frame_1": 31,
+      "ignored_line_primitives": 0,
+      "flipped_mirrored_triangles": 0,
+      "removed_degenerate_triangles": 0,
+      "repaired_unbound_primitives": 4,
+      "repaired_normal_winding_triangles": 12,
+      "triangles": 6742,
+      "triangles_per_material": {
+        "Hull": 5934,
+        "Canopy": 0,
+        "Engine": 808
+      },
+      "bounds": [
+        [
+          -0.4747689664363861,
+          -0.19669675827026367,
+          -0.9863959550857544
+        ],
+        [
+          0.4747689664363861,
+          0.19669675827026367,
+          0.9863959550857544
+        ]
+      ],
+      "radius": 1.0
+    }
+  },
+  "textures": [
+    {
+      "source": "fuselage_diff.dds",
+      "file": "fuselage_diffuse.png",
+      "source_size": [
+        2048,
+        1024
+      ],
+      "size": [
+        2048,
+        1024
+      ],
+      "specular_gain": 1.0
+    },
+    {
+      "source": "fuselage_norm.png",
+      "file": "fuselage_normal.png",
+      "source_size": [
+        2048,
+        1024
+      ],
+      "size": [
+        2048,
+        1024
+      ],
+      "specular_gain": 1.0
+    },
+    {
+      "source": "fuselage_spec.dds",
+      "file": "fuselage_specular.png",
+      "source_size": [
+        2048,
+        1024
+      ],
+      "size": [
+        2048,
+        1024
+      ],
+      "specular_gain": 0.8
+    },
+    {
+      "source": "fuselage_glow.dds",
+      "file": "fuselage_emission.png",
+      "source_size": [
+        2048,
+        1024
+      ],
+      "size": [
+        2048,
+        1024
+      ],
+      "specular_gain": 1.0
+    },
+    {
+      "source": "engine_diff.dds",
+      "file": "engine_diffuse.png",
+      "source_size": [
+        1024,
+        512
+      ],
+      "size": [
+        1024,
+        512
+      ],
+      "specular_gain": 1.0
+    },
+    {
+      "source": "engine_norm.png",
+      "file": "engine_normal.png",
+      "source_size": [
+        1024,
+        512
+      ],
+      "size": [
+        1024,
+        512
+      ],
+      "specular_gain": 1.0
+    },
+    {
+      "source": "engine_spec.dds",
+      "file": "engine_specular.png",
+      "source_size": [
+        1024,
+        512
+      ],
+      "size": [
+        1024,
+        512
+      ],
+      "specular_gain": 0.4
+    },
+    {
+      "source": "engine_glow.dds",
+      "file": "engine_emission.png",
+      "source_size": [
+        1024,
+        512
+      ],
+      "size": [
+        1024,
+        512
+      ],
+      "specular_gain": 1.0
+    }
+  ]
+}

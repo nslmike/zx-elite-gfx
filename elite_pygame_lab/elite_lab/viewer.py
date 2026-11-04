@@ -605,13 +605,51 @@ class Viewer:
 
 
 def main(argv=None) -> None:
+    from .space_assets import AssetCatalog, AssetError, SOURCE_NAMES, TEXTURE_NAMES
     parser = argparse.ArgumentParser(description="Учебный ручной рендерер ZX Spectrum Elite")
-    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces"), default="ship")
-    parser.add_argument("--model", type=int, choices=range(len(MODELS)), metavar="ID",
+    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces", "space"), default="ship")
+    parser.add_argument("--model", type=int, metavar="ID",
                         help="Номер модели в каталоге, например 19 для Dodo")
     parser.add_argument("--screenshot", type=Path, help="Сохранить кадр UI и выйти (для проверки)")
-    parser.add_argument("--headless", action="store_true", help="Программный экран SDL без окна")
+    parser.add_argument("--headless", action="store_true", help="Рендер без окна (для space — отдельный контекст OpenGL)")
+    parser.add_argument("--no-hud", action="store_true", help="Скрыть интерфейс космического атласа")
+    parser.add_argument("--model-source", choices=tuple(SOURCE_NAMES), help="Набор геометрии для режима space")
+    parser.add_argument("--texture-source", choices=tuple(TEXTURE_NAMES), help="Родные карты модели или процедурная обшивка атласа")
+    parser.add_argument("--list-sources", action="store_true", help="Показать установленные наборы, авторов, лицензии и номера моделей")
     args = parser.parse_args(argv)
+    if args.list_sources:
+        catalog = AssetCatalog()
+        print("elite — классический каталог Elite, модели 0–19, процедурная обшивка")
+        for source in catalog.pack_ids:
+            try:
+                pack = catalog.pack(source)
+            except AssetError as exc:
+                parser.error(str(exc))
+            print(f"{source} — {SOURCE_NAMES[source]}, модели {', '.join(map(str, sorted(pack)))}")
+            for author, license_name in dict.fromkeys((s.author, s.license) for s in pack.values()):
+                print(f"  {author} · {license_name}")
+        if catalog.pack_ids:
+            print("mixed — сборный флот из установленных наборов")
+        return
+    if args.mode == "space":
+        try:
+            from .space_viewer import run_space
+        except ModuleNotFoundError as exc:
+            if exc.name not in ("numpy", "moderngl", "glcontext"):
+                raise
+            parser.exit(1, "Для космического атласа установите зависимости: python -m pip install -r requirements-space.txt\n")
+        try:
+            run_space(args.model, args.screenshot, args.headless, not args.no_hud,
+                      args.model_source or "elite", args.texture_source or "author")
+        except AssetError as exc:
+            parser.error(str(exc))
+        return
+    if args.model_source or args.texture_source:
+        parser.error("Выбор источника относится к космическому атласу (--mode space)")
+    if args.model is not None and args.model not in range(len(MODELS)):
+        parser.error(f"Номер модели должен быть от 0 до {len(MODELS)-1}")
+    if args.no_hud:
+        parser.error("--no-hud относится к космическому атласу (--mode space)")
     if args.mode == "faces" and args.model is not None and not MODELS[args.model].face_vertices:
         parser.error(f"У модели {MODELS[args.model].name} нет граней для сравнения")
     if args.headless:

@@ -1,0 +1,300 @@
+{
+// ++++++          Griff Spec Gloss Viper NPC Materials       ++++++
+	"griff_SpecGloss_Viper-NPC_Materials" = 
+		{
+		like_ship = "oolite_template_viper";
+		aft_eject_position = "0.0 -10.4423 -26.5399";
+		exhaust = (	"8.7893 -1.173 -23.6994 3.5 3.5 0.65",
+				   "-8.7893 -1.173 -23.6994 3.5 3.5 0.65"
+				   );
+		name = "GalCop Viper";	
+		materials = 
+		{ 
+			"Hull" = 
+			{
+				diffuse_map = "griff_SpecGloss_Viper_Hull_Diffuse.png";
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_SpecGloss_Viper_Hull_Normal.png";
+				specular_map = "griff_SpecGloss_Viper_Hull_SpecGloss.png";
+				emission_map = "griff_SpecGloss_Viper_Hull_Emissive.png";
+			}; 
+			"LightStrip" = 
+			{ 
+				diffuse_map = "griff_SpecGloss_Viper_LightStrip_Diffuse.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_SpecGloss_Viper_LightStrip_Normal.png";
+				specular_map = "griff_SpecGloss_Viper_LightStrip_SpecGloss.png";
+			};
+		};
+		missile_launch_position = "0.0 -5.2631 20.714";
+		model = "griff_specgloss_viper.dat"; 
+		roles = "police";
+		scoop_position = "0.0 -6.3131 13.0546";
+		subentities = 
+		(
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.6;
+				bright_fraction = 0.3;
+				position = (-21.88, 0.0, -20.63);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.7;
+				bright_fraction = 0.3;
+				position = (-18.75, 0.0, -13.75);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.8;
+				bright_fraction = 0.3;
+				position = (-15.63, 0.0, -6.88);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.9;
+				bright_fraction = 0.3;
+				position = (-12.50, 0.0, 0.00);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.6;
+				bright_fraction = 0.3;
+				position = (21.88, 0.0, -20.63);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.7;
+				bright_fraction = 0.3;
+				position = (18.75, 0.0, -13.75);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.8;
+				bright_fraction = 0.3;
+				position = (15.63, 0.0, -6.88);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.9;
+				bright_fraction = 0.3;
+				position = (12.50, 0.0, 0.0);
+			}
+		);
+		weapon_position_forward = "0.0 -2.1116 26.6794";
+		weapon_position_aft = "0.0 -0.995 -22.2435";
+		weapon_position_port = "-12.5854 -0.5855 -5.1626";
+		weapon_position_starboard = "12.5854 -0.5855 -5.1626";
+		};	
+
+// ++++++          Griff Spec Gloss Viper PLAYER Materials        ++++++
+	"griff_SpecGloss_Viper-Player_Materials" = 
+		{
+		like_ship = "oolite_template_viper";
+		aft_eject_position = "0.0 -10.4423 -26.5399";
+		custom_views =
+				(
+					{
+						view_description = "Rear View";
+						view_orientation = "1.0 0.0 0.0 0.0";
+						view_position = "0.0 25.0 -200.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Rear Right View";
+						view_orientation = "0.9239 0.0 0.3827 0.0";
+						view_position = "141.4214 25.0 -141.4214";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Right View";
+						view_orientation = "0.7071 0.0 0.7071 0.0";
+						view_position = "200.0 25.0 0.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front Right View";
+						view_orientation = "0.3827 0.0 0.9239 0.0";
+						view_position = "141.4214 25.0 141.4214";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front View";
+						view_orientation = "0.0 0.0 1.0 0.0";
+						view_position = "0.0 25.0 200.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Front Left View";
+						view_orientation = "0.3827 0.0 -0.9239 0.0";
+						view_position = "-141.4214 25.0 141.4214";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Left View";
+						view_orientation = "0.7071 0.0 -0.7071 0.0";
+						view_position = "-200.0 25.0 0.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Rear Left View";
+						view_orientation = "0.9239 0.0 -0.3827 0.0";
+						view_position = "-141.4214 25.0 -141.4214";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Top View";
+						view_orientation = "-0.7071 0.7071 0.0 0.0";
+						view_position = "0.0 240.0 5.0";
+						weapon_facing = "FORWARD";
+					},
+					{
+						view_description = "Bottom View";
+						view_orientation = "0.0 0.0 0.7071 0.7071";
+						view_position = "0.0 -240.0 5.0";
+						weapon_facing = "FORWARD";
+					}
+				);	
+		exhaust = (	"8.7893 -1.173 -23.6994 3.5 3.5 0.65",
+				   "-8.7893 -1.173 -23.6994 3.5 3.5 0.65" );
+		materials = 
+		{ 
+			"Hull" = 
+			{
+				diffuse_map = "griff_SpecGloss_Viper_Hull_Diffuse.png";
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_SpecGloss_Viper_Hull_Normal.png";
+				specular_map = "griff_SpecGloss_Viper_Hull_SpecGloss.png";
+				emission_map = "griff_SpecGloss_Viper_Hull_Emissive.png";
+			}; 
+			"LightStrip" = 
+			{ 
+				diffuse_map = "griff_SpecGloss_Viper_LightStrip_Diffuse.png"; 
+				gloss = 1.0;
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 42;
+				normal_map = "griff_SpecGloss_Viper_LightStrip_Normal.png";
+				specular_map = "griff_SpecGloss_Viper_LightStrip_SpecGloss.png";
+			};
+		};	
+		name = "GalCop Viper";	
+		missile_launch_position = "0.0 -5.2631 20.7146";
+		model = "griff_specgloss_viper.dat"; 
+		roles = "player";
+		scoop_position = "0.0 -6.3131 13.0546";
+		subentities = 
+		(
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.6;
+				bright_fraction = 0.3;
+				position = (-21.88, 0.0, -20.63);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.7;
+				bright_fraction = 0.3;
+				position = (-18.75, 0.0, -13.75);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.8;
+				bright_fraction = 0.3;
+				position = (-15.63, 0.0, -6.88);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 260; };
+				initially_on = no;
+				phase = 0.9;
+				bright_fraction = 0.3;
+				position = (-12.50, 0.0, 0.00);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.6;
+				bright_fraction = 0.3;
+				position = (21.88, 0.0, -20.63);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.7;
+				bright_fraction = 0.3;
+				position = (18.75, 0.0, -13.75);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.8;
+				bright_fraction = 0.3;
+				position = (15.63, 0.0, -6.88);
+			},
+			{
+				type = flasher;
+				size = 6;
+				color = { hue = 310; };
+				initially_on = no;
+				phase = 0.9;
+				bright_fraction = 0.3;
+				position = (12.50, 0.0, 0.0);
+			}
+		);		
+		view_position_aft = "0.0 1.8218 -28.3468";
+		view_position_forward = "0.0 2.1116 26.6794";
+		view_position_port = "-12.5854 2.5 -5.1626";
+		view_position_starboard = "12.5854 2.5 -5.1626";
+		weapon_facings = 1;
+		weapon_position_forward = "0.0 -2.1116 26.6794";
+		weapon_position_aft = "0.0 -0.995 -22.2435";
+		weapon_position_port = "-12.5854 -0.5855 -5.1626";
+		weapon_position_starboard = "12.5854 -0.5855 -5.1626";
+		};	
+}

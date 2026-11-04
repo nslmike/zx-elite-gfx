@@ -1,0 +1,466 @@
+{
+  "Resources/Models/oolite_coriolis.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis.dat",
+    "sha256": "872bc52eea4cef3898d94c7c2c40c85365d04e3ab43ce2d4fac77a485a01f6d4"
+  },
+  "Resources/Textures/oolite_coriolis_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_diffuse.png",
+    "sha256": "4d37a45710fd88798b7ff5a109e6b1fc0a9088166f05fc66a28540a31eaabf13"
+  },
+  "Resources/Textures/oolite_coriolis_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_normal.png",
+    "sha256": "c051af90ea73c2318b3104ee5110e619de5195ed9a41a982e1a73b90f136ecf4"
+  },
+  "Resources/Textures/oolite_coriolis_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_specular.png",
+    "sha256": "5f46f01778043d81434396fb7eca492ea8e3bf7d0158be22377292a88c001036"
+  },
+  "Resources/Models/oolite_coriolis_faceplate.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_faceplate.dat",
+    "sha256": "278c376c13e14ef9d5948f93dff7e53023c11d8b07ad26d2d45276203885cfe3"
+  },
+  "Resources/Textures/oolite_coriolis_faceplate_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_faceplate_diffuse.png",
+    "sha256": "9edd6dee6d90101e55392c6897b395846519d16d21503bc229846d3a5511188a"
+  },
+  "Resources/Textures/oolite_coriolis_faceplate_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_faceplate_normal.png",
+    "sha256": "3908e10c05211bb66b7c6deb675de79b91a7fc7dae3f0259fec5c0ea5b55ab3a"
+  },
+  "Resources/Textures/oolite_coriolis_faceplate_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_faceplate_specular.png",
+    "sha256": "0125056880902023aba4cc20c3b273bba184f445d661fe1ef9ab3873770bd353"
+  },
+  "Resources/Models/oolite_coriolis_tris.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_tris.dat",
+    "sha256": "74023390bdcd6945f41f5d867b6151f61d09b0dc1ac7855e4ec395a3916363aa"
+  },
+  "Resources/Textures/oolite_coriolis_tris_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_tris_diffuse.png",
+    "sha256": "729917a5f1c32d1f8cb9fd52788131ad713a6d8a2284e956d224ca2b5901088f"
+  },
+  "Resources/Textures/oolite_coriolis_tris_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_tris_normal.png",
+    "sha256": "c6aecd20e89e6373b3c1734ed04f1cfc1043864e485132b25fb2766640fa47b5"
+  },
+  "Resources/Textures/oolite_coriolis_tris_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_tris_specular.png",
+    "sha256": "281ada9fa9ece3a36adc0bd905ac0366f88ae83afacc548174cc42f3997c50a7"
+  },
+  "Resources/Models/oolite_coriolis_dock.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_coriolis_dock.dat",
+    "sha256": "6c3c165179285b747bfe01a6df08c472e7b1685be6718911281f2899dacdab27"
+  },
+  "Resources/Textures/oolite_coriolis_dock_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_dock_diffuse.png",
+    "sha256": "64bda5ab0b7c00548d6ce335de4d4de63156f4507ab8ce8352adfd15fa490693"
+  },
+  "Resources/Textures/oolite_coriolis_dock_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_coriolis_dock_normal.png",
+    "sha256": "9863395167650e295669c831a9bc57d6ba3c0a27de8ffe7add87c9d4a17250b7"
+  },
+  "Resources/Models/oolite_missile.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_missile.dat",
+    "sha256": "7fc15d62e4f7fc2e90eb78e46768d9fffe8bb1c7e020732123ed8066061644c0"
+  },
+  "Resources/Textures/oolite_missile_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_missile_diffuse.png",
+    "sha256": "7af4425374192e193bebebe9e66af9721c831c9d096e59923349497cc7e1ee8b"
+  },
+  "Resources/Models/oolite_escape_capsule.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_escape_capsule.dat",
+    "sha256": "56c6b70c868aed4a0e0490b085555645c69e1ca76acbffa9d928b562d5552a61"
+  },
+  "Resources/Textures/oolite_escape_capsule_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_escape_capsule_diffuse.png",
+    "sha256": "43367f5770c90f756f5557a6f96a6b1aa55067034f8f8b9351516f6d4a720a6a"
+  },
+  "Resources/Textures/oolite_escape_capsule_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_escape_capsule_normal.png",
+    "sha256": "15629fb022ed56bc2cb36b9d11f4b950ee192534a93820cdffd0720bd714cc3d"
+  },
+  "Resources/Textures/oolite_escape_capsule_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_escape_capsule_specular.png",
+    "sha256": "44f91c85e95150075a6672cb9f3afa7d055977c9b5cda22c08419084a0580b28"
+  },
+  "Resources/Models/oolite_splinter.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_splinter.dat",
+    "sha256": "1114850a80c92490486f47b240f94d36e7e0dcfc4126560f6e722bf997eae9ae"
+  },
+  "Resources/Textures/oolite_splinter_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_splinter_diffuse.png",
+    "sha256": "c2d500cb34eb3c9f32376bb77bee5902eadc953de3cc117fa702b7f4bccd42c5"
+  },
+  "Resources/Models/oolite_barrel.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_barrel.dat",
+    "sha256": "bce675e16ef220502906ed88e20813f5092870f038e1d6114b33b284ef918533"
+  },
+  "Resources/Textures/oolite_barrel_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_barrel_diffuse.png",
+    "sha256": "47b8db0f40d2614ec7a9d050b7967043b2dfcf8952776ba25914f1acee414f6a"
+  },
+  "Resources/Textures/oolite_barrel_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_barrel_normal.png",
+    "sha256": "8633b577892f706444ee652d52428806f85d197b38287ba6c781c2bf7afbd0f6"
+  },
+  "Resources/Textures/oolite_barrel_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_barrel_specular.png",
+    "sha256": "7eba66d02ecd00be485095ca9e08c32f0d48f93c74bf44c9b3f47052f10de0b0"
+  },
+  "Resources/Models/oolite_boulder.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_boulder.dat",
+    "sha256": "42e11be0cedf63a28322594fd89d912e0e82e0f118b6f5440a96c5fb4b9cdc7d"
+  },
+  "Resources/Textures/oolite_boulder_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_boulder_diffuse.png",
+    "sha256": "8ed99f0d2d95646b5db3e641f111668fc281ba1fb36f6274fafb8a4fd2b6e413"
+  },
+  "Resources/Models/oolite_asteroid.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asteroid.dat",
+    "sha256": "22a862e574fc560e01966d033dfa9aafadb4be6bad56213a79ae17444402410e"
+  },
+  "Resources/Textures/oolite_asteroid_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asteroid_diffuse.png",
+    "sha256": "bfd0b339c422d8f62baab8a14129adb344669015909da762456db4bd8607826c"
+  },
+  "Resources/Textures/oolite_asteroid_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asteroid_normal.png",
+    "sha256": "fa7d8bf32b142816f65934a77f813c82da0da0c14c066eca58b7a06c611fe6fa"
+  },
+  "Resources/Models/oolite_rock_hermit.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit.dat",
+    "sha256": "7625ec0f3274f78b31daf3bb88465f9f568284b9d7591fbbb1dfb33c63bc8258"
+  },
+  "Resources/Textures/oolite_rock_hermit_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_diffuse.png",
+    "sha256": "833eab671b9ccf909cfd92377260d41dff3d87736699c724338e55632415a4ee"
+  },
+  "Resources/Textures/oolite_rock_hermit_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_normal.png",
+    "sha256": "0051e47f9bb99f8eb91ce30b50b20b64ad8024d45a9f9e33156c3852db8ff8de"
+  },
+  "Resources/Textures/oolite_rock_hermit_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_specular.png",
+    "sha256": "b593d5b94fbe0e76adb0631750726972d116fcb853d8a8c8f428daa2402f5a19"
+  },
+  "Resources/Models/oolite_rock_hermit_rock.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_rock.dat",
+    "sha256": "1199e9eb1c2d796494cc50d48abbab95d9c501533c3843eee5b018987356ad43"
+  },
+  "Resources/Textures/oolite_rock_hermit_rock_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_rock_diffuse.png",
+    "sha256": "34df3b6a9949142033fc75096bedab8a9ad81c43deef94b870796ac256578ba5"
+  },
+  "Resources/Textures/oolite_rock_hermit_rock_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_rock_normal.png",
+    "sha256": "1551703121d04580ae1a73e175dec0cfcb54c5f02bf37f521005df763fa296be"
+  },
+  "Resources/Models/oolite_rock_hermit_pipes.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_pipes.dat",
+    "sha256": "50249ac9f9fd02c3c63c6e7f9729ed2a8c4251a9553213f8715d946029faeb1c"
+  },
+  "Resources/Textures/oolite_rock_hermit_pipes_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_pipes_diffuse.png",
+    "sha256": "e8d5f2bd7d4598debf7fe7b7978b7207e93157723cb2d0bb07dab21616c3dd56"
+  },
+  "Resources/Textures/oolite_rock_hermit_pipes_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_pipes_normal.png",
+    "sha256": "61fd9e0ebc20d62c094ee6c8d2a42431794625ae18c645d9b633d22c185405ba"
+  },
+  "Resources/Textures/oolite_rock_hermit_pipes_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_pipes_specular.png",
+    "sha256": "1789bcf54e3e1f3bec5279d42de30bbdb7bbd9afcfd3e6e408d16b47e2f25578"
+  },
+  "Resources/Models/oolite_rock_hermit_tunnel_extras.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_tunnel_extras.dat",
+    "sha256": "731dd28ac23581e2037978944ec0a5cc9f0765b0bc102134654af90bc4efc20a"
+  },
+  "Resources/Textures/oolite_rock_hermit_tunnel_extras_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_tunnel_extras_diffuse.png",
+    "sha256": "0de7a94c2846d13be03a9cfd224c6825f1a93d99f7e4ac157edfe7d96d6f553f"
+  },
+  "Resources/Textures/oolite_rock_hermit_tunnel_extras_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_tunnel_extras_normal.png",
+    "sha256": "33215c76229b235b23ba3fd83c3ba40339aaeff634ac515306fa368ad9c41d8e"
+  },
+  "Resources/Textures/oolite_rock_hermit_tunnel_extras_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_tunnel_extras_specular.png",
+    "sha256": "1b2f4d352c75d86f2b5f43f6ca70d514ad89019aa039be213d333799304dc566"
+  },
+  "Resources/Models/oolite_rock_hermit_dock.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_rock_hermit_dock.dat",
+    "sha256": "bce414fe0ccfef2ad457289bbad282a9c294fdcbfe5d258454a863a2cb99594c"
+  },
+  "Resources/Textures/oolite_rock_hermit_dock_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_dock_diffuse.png",
+    "sha256": "2ea06c1543fb32ebb7a44c1a8ef565c0847cadb47451939b4b65382b85dc678d"
+  },
+  "Resources/Textures/oolite_rock_hermit_dock_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_dock_normal.png",
+    "sha256": "bc276e5ecc9e0a95f02055cdb4be2d2fce27f46582d3300bf9a9fb3930a0fc50"
+  },
+  "Resources/Textures/oolite_rock_hermit_dock_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_rock_hermit_dock_specular.png",
+    "sha256": "3c7a0802054ef530ecceba4afc6e3cc8525ee5ae151d676a1970156f77a4834c"
+  },
+  "Resources/Models/oolite_viper.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_viper.dat",
+    "sha256": "11892066baf8f60fa1f4ff9a0479559a9ec8f52db522f061fd669e6cef10914e"
+  },
+  "Resources/Textures/oolite_viper_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_viper_diffuse.png",
+    "sha256": "b8c99314cb62d6ac74c39793e901886f047ac3e6988ce66f7c3cd06e23306558"
+  },
+  "Resources/Textures/oolite_viper_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_viper_normal.png",
+    "sha256": "639f87e3394baab494d93668769da27dfb809210c36a69fea781bd9825572067"
+  },
+  "Resources/Models/oolite_cobra3.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_cobra3.dat",
+    "sha256": "36ea4eecd4febd7b106ebdd23e17de7e3337400b9ebff5d84f5a74204058388a"
+  },
+  "Resources/Textures/oolite_cobra3_subents.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_subents.png",
+    "sha256": "be0dedb1d34d3425b1f7a92d2ac56f174938f8157aab56509e227bba26721da5"
+  },
+  "Resources/Textures/oolite_cobra3_subents_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_subents_normal.png",
+    "sha256": "13607e4bb2b8ac69a83a2af86d4326786ecd8dcaee103ba1ec63a47932c64670"
+  },
+  "Resources/Textures/oolite_cobra3_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_diffuse.png",
+    "sha256": "348a0f9394baba4ec1ac0a37a775850e964d496078e5c4f136c479425eb4aa11"
+  },
+  "Resources/Textures/oolite_cobra3_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_normal.png",
+    "sha256": "fd3f733f97c406f418880352825b92720fedff9951200aca918fa710eba3daa6"
+  },
+  "Resources/Textures/oolite_cobra3_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_specular.png",
+    "sha256": "4dc706d2ceb93093c27b000fa03834557e91a08fbc636a567b032cee61ac9798"
+  },
+  "Resources/Models/oolite_python_trader.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python_trader.dat",
+    "sha256": "fb91a65afd0ffb4d69b37dc9e9d25cf8339fcd4473e4adb52625a9c2258cc1e7"
+  },
+  "Resources/Textures/oolite_python_subents_trader.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents_trader.png",
+    "sha256": "d1ee29ed86d8c5a9978e9d66da032c1ba30279d8ac08a241f3afe5d5ee5124df"
+  },
+  "Resources/Textures/oolite_python_subents_normal_trader.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents_normal_trader.png",
+    "sha256": "7190c9715adfe6f1c5425365b55931d9b3af0571949f835179ce56479cbf2ee0"
+  },
+  "Resources/Textures/oolite_python_subents_specular_trader.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents_specular_trader.png",
+    "sha256": "629d1e6e6e0d4b66e59e6c06b5694eefa74ed84ca2614da9eedb724cc53b50e5"
+  },
+  "Resources/Textures/oolite_python_diffuse_trader.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_diffuse_trader.png",
+    "sha256": "5954a74f07a587b976a6114f6192d7d8d308c993398eb631d62466dd6bbdca18"
+  },
+  "Resources/Textures/oolite_python_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_normal.png",
+    "sha256": "77137b392587f41753b66ebc83ed9199675bc3562ba5e6649d6546f085e7145a"
+  },
+  "Resources/Textures/oolite_python_specular_trader.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_specular_trader.png",
+    "sha256": "7e63552d5c0ffb050dc496bc1a57ee8c35de3d974c2d1173afa476ea2d45f7c2"
+  },
+  "Resources/Models/oolite_python.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_python.dat",
+    "sha256": "338ff21161c54dd7a7d67404a7903ed2a1935e2d4c1434318b34abfd628f0d8d"
+  },
+  "Resources/Textures/oolite_python_subents.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents.png",
+    "sha256": "a8ebd23fe8dd2d5cf8b0c4ba0c182ff13a7e1d6a6a21e50cb72c55ed68bf866d"
+  },
+  "Resources/Textures/oolite_python_subents_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_subents_normal.png",
+    "sha256": "44660f0236c6aa0bb1e8152d8955b564e84e2514dc42503a20c5833aca2c28d7"
+  },
+  "Resources/Textures/oolite_python_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_diffuse.png",
+    "sha256": "348a675ef1f993ebd626194283d7e2099ab2720b934cddae86fd58f43955eadf"
+  },
+  "Resources/Textures/oolite_python_blackdog_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_blackdog_normal.png",
+    "sha256": "a516f6cf687b4106e1b14d0f88f326b337257b3e4f6105bdc75c27c4e936a84c"
+  },
+  "Resources/Textures/oolite_python_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_python_specular.png",
+    "sha256": "955ac93574a9f5356751705bb8dd373e4446c75f0d38b3c024810740456f434d"
+  },
+  "Resources/Textures/oolite_cobra3_diffuse_pirate.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_cobra3_diffuse_pirate.png",
+    "sha256": "fb4b286f5d9c1e5c74f2ead204bed53cfb4542f07393cbb2797147aca4a36203"
+  },
+  "Resources/Models/oolite_asp.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_asp.dat",
+    "sha256": "577a6ff0b71c18ab81ced67d37c27651ae24bc0592551845c47bb7b954afea08"
+  },
+  "Resources/Textures/oolite_asp_subents.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_subents.png",
+    "sha256": "ecd46dddc78d07d1576115eb40aa992f2bf85abafaf800050ce330d2747defba"
+  },
+  "Resources/Textures/oolite_asp_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_diffuse.png",
+    "sha256": "d2ab2768621e40012cbaba3bb5eb27002d3358bb27fae4aad66093964a8a7b1e"
+  },
+  "Resources/Textures/oolite_asp_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_normal.png",
+    "sha256": "08240349269ef41dd74a1bfdc535373c3f919f4af0a8d461859837c00f0142b7"
+  },
+  "Resources/Textures/oolite_asp_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_asp_specular.png",
+    "sha256": "3ed0b7d01edbf94bfdbf14afeccc79471f6576361829612d4eb449f01bb4d28d"
+  },
+  "Resources/Models/oolite_ferdelance.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_ferdelance.dat",
+    "sha256": "a70d4891a931a21710c0ff10d9f6fd5616d16abc9c11f500549247e8b979c0cf"
+  },
+  "Resources/Textures/oolite_ferdelance_subents.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_subents.png",
+    "sha256": "bdbaf3952aa545e8a5e8526f432b9a98365a60c8d703398d40f7038cb01e9883"
+  },
+  "Resources/Textures/oolite_ferdelance_subents_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_subents_normal.png",
+    "sha256": "b452f015c088fe7b559bd5b729b6e264b256f2af14997335fead2a4376c1d7e3"
+  },
+  "Resources/Textures/oolite_ferdelance_subents_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_subents_specular.png",
+    "sha256": "8875326cda006d2ee525f5d6b6909ba3f719bd5489e6adb70b818a03e90d8961"
+  },
+  "Resources/Textures/oolite_ferdelance_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_diffuse.png",
+    "sha256": "6fb3d99afd94efab3271f48e0e69ece2527356e309659e983d60103636105899"
+  },
+  "Resources/Textures/oolite_ferdelance_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_normal.png",
+    "sha256": "cb707979acc02f1e98090acedea797385a8ea3f78b0603f6e9761faad7e64410"
+  },
+  "Resources/Textures/oolite_ferdelance_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_ferdelance_specular.png",
+    "sha256": "63fe16df69470d0b7abe0faac5bcae92c45db175fc62b10e1f9549b8a05c6110"
+  },
+  "Resources/Models/oolite_thargoid.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargoid.dat",
+    "sha256": "e24e3e476052a674444f64ebabd93e87b971ffe10493f6680a4739b20c60da2c"
+  },
+  "Resources/Textures/oolite_thargoid_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargoid_diffuse.png",
+    "sha256": "57c1d6959183fa1b7c85f6f92b9df7a5148e03d3a522cca3e5769b00cf86d85b"
+  },
+  "Resources/Textures/oolite_thargoid_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargoid_normal.png",
+    "sha256": "eb2ca1c62c77b9be96057a83e497bbd3393348d53ef27c87dc7193f6c2dc1cda"
+  },
+  "Resources/Textures/oolite_thargoid_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargoid_specular.png",
+    "sha256": "ae1556139e513976fad97fdefe1cc017fb38bcb13d60d081087a54510db580c0"
+  },
+  "Resources/Models/oolite_sidewinder.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_sidewinder.dat",
+    "sha256": "bcb14720430bb8b638951e771ae45c6f5982725bb947d1cb09bfa069a4af973b"
+  },
+  "Resources/Textures/oolite_sidewinder_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_sidewinder_diffuse.png",
+    "sha256": "eedb978e0f2f975f228b7ae5871aee798ef80a45122651da0e6e5e6aaffcda46"
+  },
+  "Resources/Textures/oolite_sidewinder_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_sidewinder_normal.png",
+    "sha256": "07adadfecaed4a77dd7958255ae330864479b91382b23ee9f60203497a85f86f"
+  },
+  "Resources/Textures/oolite_sidewinder_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_sidewinder_specular.png",
+    "sha256": "7c3185246713aca3afd10cdb375f8cd3fa8ccc17eeefffeca0191c2a170f4afa"
+  },
+  "Resources/Models/oolite_krait.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_krait.dat",
+    "sha256": "45eb3cbd2af4038249a6c2af59ccf304bf0a927d327c643b73888dfbba39e473"
+  },
+  "Resources/Textures/oolite_krait_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_krait_diffuse.png",
+    "sha256": "967b761f88ee80c26be0cc7889ac42f509be619f8fda2c9abcbba652223359c1"
+  },
+  "Resources/Textures/oolite_krait_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_krait_normal.png",
+    "sha256": "486939f480036b619753b3484da615b1539924720b31b7659a7610c14439504c"
+  },
+  "Resources/Textures/oolite_krait_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_krait_specular.png",
+    "sha256": "30f05c4b6b7503cb250578bc70e5c7fecd4dc9742bb3c0ae2539da95579e96eb"
+  },
+  "Resources/Models/oolite_thargon.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_thargon.dat",
+    "sha256": "07483459182eb204511ac0b6a7b5b18bc44bd62bada625efd9d0859953cd4eb0"
+  },
+  "Resources/Textures/oolite_thargon_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargon_diffuse.png",
+    "sha256": "0e440f1cd3d28f6329470fab5241ac5a8abca63352c204146e564a4663c39f14"
+  },
+  "Resources/Textures/oolite_thargon_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargon_normal.png",
+    "sha256": "cea30add3c73913ae67b2b32301a65f6af37ce5c40cf794a192e75d380198bd4"
+  },
+  "Resources/Textures/oolite_thargon_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_thargon_specular.png",
+    "sha256": "b22c0ed4aa37018c75437b42808221e0b8e173b809aee615a9980c52945a6af9"
+  },
+  "Resources/Models/oolite_dodo.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo.dat",
+    "sha256": "28dee6b2fe44ef76c5f13023544f7feee8ca701a8545abbc50710fb4a6b36dba"
+  },
+  "Resources/Textures/oolite_dodo_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_diffuse.png",
+    "sha256": "fbd4fc98347033cedc3822ad4401d69dc89ad2d660f20ff0567016d3df6350b0"
+  },
+  "Resources/Textures/oolite_dodo_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_normal.png",
+    "sha256": "3fd911eb64faae11770a7d977e631178eccc7eff24cc84a89b968248a5c4f9c8"
+  },
+  "Resources/Textures/oolite_dodo_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_specular.png",
+    "sha256": "5ba2bfec36e9948bdc9fb56a4fe2658064c3fe22ab14d6025f092e282d533b23"
+  },
+  "Resources/Models/oolite_dodo_faceplate.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo_faceplate.dat",
+    "sha256": "53d5689f55d1054f4cde0c3e5c52a5e0dede3793a2a37cf0fc9f3f398f1ba54c"
+  },
+  "Resources/Textures/oolite_dodo_faceplate_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_faceplate_diffuse.png",
+    "sha256": "2aa2c071ee45e982faa8e68a4ad960fe6db24f7f95518e9ed4057c9920090b43"
+  },
+  "Resources/Textures/oolite_dodo_faceplate_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_faceplate_normal.png",
+    "sha256": "676d0605ba84547abe208e0b65121b4cd4397f356bc85668b528dd4133ce48ed"
+  },
+  "Resources/Textures/oolite_dodo_faceplate_specular.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_faceplate_specular.png",
+    "sha256": "5abc0f18770abfe8717742e8565c95c4ead7b47711009d85e318e44ea715842f"
+  },
+  "Resources/Models/oolite_dodo_dock.dat": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Models/oolite_dodo_dock.dat",
+    "sha256": "23dcd20d168e3c53e1973d43bc713272f83445f213431547d14e021a4e8b12e1"
+  },
+  "Resources/Textures/oolite_dodo_dock_diffuse.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_dock_diffuse.png",
+    "sha256": "eba01682a4665c279f93a2056481d32d4fde8129d6cdb65d9405bdf7686894d2"
+  },
+  "Resources/Textures/oolite_dodo_dock_normal.png": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Textures/oolite_dodo_dock_normal.png",
+    "sha256": "a84d011bdc96ed2b8babb961cee15f6be5da32f72aaa2e8cf20cbb7b4546e8ed"
+  },
+  "LICENSE.md": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/LICENSE.md",
+    "sha256": "b60864bd52b3a060d9badade5aa904479679fdb7544609d70c8c49c41987ab19"
+  },
+  "Doc/contributors.txt": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Doc/contributors.txt",
+    "sha256": "4d7ab32b9958f9be2d62c52b66797da80f996d5561851040498b06b63caea65e"
+  },
+  "Resources/Config/shipdata.plist": {
+    "source": "https://github.com/OoliteProject/oolite/blob/28ceaaba0d79d0b6ea1c044c6235e3616b170098/Resources/Config/shipdata.plist",
+    "sha256": "f4910d79b88cc803f7bd785fd2fa7d34597c0c891925659c23748313052ac166"
+  }
+}

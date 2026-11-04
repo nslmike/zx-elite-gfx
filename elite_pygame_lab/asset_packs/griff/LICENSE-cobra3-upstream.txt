@@ -1,0 +1,8 @@
+griff_HP_CobraMK3_v0.2.oxp
+--------------------------
+
+
+License: CC-BY-NC-SA 4.0
+This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike License version 4.0. For more information see the ReadMe of Oolite or the Creative Commons' website.
+Practically this means that you may rip it apart and use whatever seems useful to you, as long as you credit the original author.
+

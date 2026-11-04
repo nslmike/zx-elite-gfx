@@ -25,6 +25,8 @@ _NAMES = (
     "Asp Mk II", "Fer-de-Lance", "Thargoid", "Sidewinder", "Krait", "Thargon",
 )
 COBRA_ID = 9
+COBRA_IDS = (COBRA_ID, 12)  # Торговая и пиратская версии используют один каркас.
+KRAIT_ID = 17
 DODO_ID = len(_NAMES)  # Индекс в демо, за пределами кассетной таблицы.
 
 

@@ -1,0 +1,8 @@
+# Копии авторских лицензий и метаданных сохраняют исходные байты и переводы строк.
+griff/*-upstream.* -text -whitespace
+oolite/attribution/UPSTREAM_* -text -whitespace
+oolite/attribution/CC-BY-NC-SA-3.0.txt -text -whitespace
+pioneer/source_metadata/* -text -whitespace
+pioneer/LICENSE-CC-BY-SA-3.0.txt -text -whitespace
+# В оригинале заголовок Authors подчёркнут семью знаками равенства.
+pioneer/source_metadata/AUTHORS.txt conflict-marker-size=32

@@ -1,0 +1,27 @@
+{
+	"identifier" = "griff_SpecGloss_Viper_Materials_v0.3.oxp";
+	"required_oolite_version" = "1.90";
+	"title" = "SpecGloss_Viper";
+	"version" = "0.3";
+	"category" = "Ships";
+	"description" = "A version of the Viper textured with Oolite Specular-Gloss lighting model.";
+	"author" = "Griff";
+	"file_size" = "11010048";			
+	"information_url" = "http://wiki.alioth.net/index.php/Griff_Industries";
+	"license" = "CC-BY-NC-SA 4.0";
+	"upload_date" = "2023-10-14 13:53:49";
+}
+
+/*
+License:
+This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike License version 4.0. For more information see the ReadMe of Oolite or the Creative Commons' website.
+Practically this means that you may rip it apart and use whatever seems useful to you, as long as you credit the original author.
+
+An oxp for Oolite v1.90 and higher that adds a new ship model based on the Sidewinder, includes a player flyable version which has no Hyperdrive capability
+
+Update History
+--------------
+v0.1 - 12/10/2023 initial release 
+v0.2 - 13/10/2023 - reduced green sheen in spec col map in certain areas of the hull: 
+v0.3 - 14/10/2023 - glowemap - changed glow effect. Diffuse, Normal: extra lights placed on underside of hull
+*/

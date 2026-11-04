@@ -1,0 +1,54 @@
+{
+  "id": "pioneer",
+  "title": "Pioneer",
+  "author": "Bálint Szilárd (bszlrd), Pioneer Developers",
+  "license": "CC BY-SA 3.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "source": "https://github.com/pioneerspacesim/pioneer/tree/7506ef474e060c129fe27349f279895b2a5d8ed9/data/models/ships/sinonatrix",
+  "revision": "7506ef474e060c129fe27349f279895b2a5d8ed9",
+  "models": {
+    "20": {
+      "name": "Sinonatrix Courier",
+      "mesh": "sinonatrix_hi.npz",
+      "lods": [
+        "sinonatrix_med.npz",
+        "sinonatrix_low.npz"
+      ],
+      "materials": [
+        {
+          "name": "Hull",
+          "diffuse": "fuselage_diffuse.png",
+          "normal": "fuselage_normal.png",
+          "specular": "fuselage_specular.png",
+          "emission": "fuselage_emission.png",
+          "shininess_source": 100,
+          "opacity_source": 1.0,
+          "gloss": 0.720904,
+          "procedural_type": 0
+        },
+        {
+          "name": "Canopy",
+          "diffuse": "fuselage_diffuse.png",
+          "normal": "fuselage_normal.png",
+          "specular": "fuselage_specular.png",
+          "emission": "fuselage_emission.png",
+          "shininess_source": 120,
+          "opacity_source": 0.9,
+          "gloss": 0.745724,
+          "procedural_type": 2
+        },
+        {
+          "name": "Engine",
+          "diffuse": "engine_diffuse.png",
+          "normal": "engine_normal.png",
+          "specular": "engine_specular.png",
+          "emission": "engine_emission.png",
+          "shininess_source": 80,
+          "opacity_source": 1.0,
+          "gloss": 0.689109,
+          "procedural_type": 1
+        }
+      ]
+    }
+  }
+}
