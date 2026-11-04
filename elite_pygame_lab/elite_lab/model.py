@@ -29,12 +29,16 @@ COBRA_IDS = (COBRA_ID, 12)  # Торговая и пиратская верси�
 KRAIT_ID = 17
 DODO_ID = len(_NAMES)  # Индекс в демо, за пределами кассетной таблицы.
 
+# Крайние точки усов (5, 6) и рисунок на обшивке (7..16) не задают плоскости.
+# Эти шесть замкнутых контуров составлены из рёбер корпуса в порядке face ID.
+_KRAIT_HULL = ((0, 3, 1), (0, 2, 3), (0, 4, 2), (0, 1, 4), (1, 3, 2), (1, 2, 4))
+
 
 def _signed(value: int, flags: int, mask: int) -> int:
     return -value if flags & mask else value
 
 
-def _decode_model(data: bytes, base: int, name: str, *, vertex_test_default=False) -> Model:
+def _decode_model(data: bytes, base: int, name: str, *, vertex_test_default=False, hull_triangles=()) -> Model:
     nv, ne, nf = data[base + 3:base + 6]
     vo, eo, fo = unpack_from("<3H", data, base + 12)
     vertices = []
@@ -55,12 +59,13 @@ def _decode_model(data: bytes, base: int, name: str, *, vertex_test_default=Fals
                                if edge.faces[0] != edge.faces[1] and i in edge.faces)
                           for i in range(nf))
     return Model(name, tuple(vertices), tuple(edges), tuple(normals), data[base + 19],
-                 face_vertices, vertex_test_default)
+                 face_vertices, vertex_test_default, hull_triangles)
 
 
 def _load_model(index: int, name: str) -> Model:
     address, = unpack_from("<H", BLUEPRINT_DATA, index * 4 + 1)
-    return _decode_model(BLUEPRINT_DATA, address - BLUEPRINT_BASE, name)
+    return _decode_model(BLUEPRINT_DATA, address - BLUEPRINT_BASE, name,
+                         hull_triangles=_KRAIT_HULL if index == KRAIT_ID else ())
 
 
 # Геометрия Dodo взята из отдельной спектрумовской версии Elite Legend 1.09.

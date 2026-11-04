@@ -1,8 +1,7 @@
-"""Pygame только показывает рассчитанные вручную пиксели и учебный интерфейс.
+"""Просмотрщик каркасов с ручным пиксельным и линейным рендерерами.
 
 Запуск: python -m elite_lab
 Вкладки показывают выбранную модель, пиксельный цикл и каталог оригинала.
-Ни один отрезок не рисуется через pygame.draw.line / lines / aaline.
 """
 
 from __future__ import annotations
@@ -10,15 +9,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
 import pygame
 
+from .clipping import prepare_line, screen_xy
 from .controls import pose_from_angles
 from .framebuffer import Framebuffer
-from .model import COBRA_ID, DODO_ID, MODELS, initial_depth, minimum_depth
+from .model import COBRA_ID, COBRA_IDS, DODO_ID, KRAIT_ID, MODELS, initial_depth, minimum_depth
 from .raster import LineTrace, trace_line
 from .renderer import render_geometry
 from .types import ProjectedVertex
@@ -32,6 +34,12 @@ MUTED = (150, 170, 190)
 CYAN = (72, 220, 229)
 AMBER = (255, 190, 85)
 GRID = (38, 53, 70)
+_FACE_LABELS = {"elite": "оригинальный тест Elite", "vertex": "через вершину грани",
+                "hull": "по треугольникам корпуса"}
+_KRAIT_CLIP_ANGLES = (31.06, -24.57, 0.0)
+_KRAIT_UNDERSIDE = ((171.0, 6.0, 0.0), (196.25, 13.91, 0.0))
+_COBRA_WING_EDGE = 20  # Левый сгиб 1–5, смежные грани 3 и 1.
+_COBRA_WING_VIEWS = ((60.0, -28.0, 0.0, 384), (60.0, -25.0, 0.0, 384))
 
 
 def _surface(framebuffer: Framebuffer, ink=INK) -> pygame.Surface:
@@ -40,8 +48,35 @@ def _surface(framebuffer: Framebuffer, ink=INK) -> pygame.Surface:
     return pygame.image.frombuffer(framebuffer.rgb_bytes(ink, PAPER), (256, 128), "RGB")
 
 
-def _ship_lines(geometry) -> dict[int, LineTrace]:
-    return {edge.index: trace_line(edge.start, edge.end)
+@dataclass(frozen=True)
+class ScreenSegment:
+    endpoints: tuple[tuple[int, int], tuple[int, int]] | None
+    count: int  # Счётчик оригинального клиппера в координатах Spectrum.
+    clip_status: str
+
+
+def _screen_segment(start, end) -> ScreenSegment:
+    span = prepare_line(start, end)
+    if not span.count:
+        return ScreenSegment(None, 0, "rejected")
+    if all(p.xmag < 128 and p.ymag < 64 for p in (start, end)):
+        return ScreenSegment((screen_xy(start), screen_xy(end)), span.count, "inside")
+
+    # Число переносов E за весь отрезок даёт смещение по второй оси сразу.
+    direction = span.direction
+    major = span.count - 1
+    minor = (128 + major * direction.slope) // 256
+    dx, dy = (major, minor) if direction.major_axis == "x" else (minor, major)
+    x, y = span.origin
+    last = (x + direction.step_x * dx, y + direction.step_y * dy)
+    # У касательных линий счётчик Elite иногда доводит координату за край bitmap.
+    ends = pygame.Rect(0, 0, 256, 128).clipline(span.origin, last)
+    return ScreenSegment(ends, span.count, "clipped")
+
+
+def _ship_lines(geometry, renderer="pixels"):
+    make_line = _screen_segment if renderer == "lines" else trace_line
+    return {edge.index: make_line(edge.start, edge.end)
             for edge in geometry.edge_decisions if edge.draw}
 
 
@@ -54,13 +89,23 @@ def _ship_frame(lines: dict[int, LineTrace]) -> Framebuffer:
     return frame
 
 
+def _draw_segments(surface, lines, scale, selected=None) -> None:
+    surface.fill(PAPER)
+    # Выбранное ребро рисуем последним, чтобы подсветка была видна на стыках.
+    for index in sorted(lines, key=lambda i: i == selected):
+        ends = lines[index].endpoints
+        if ends:
+            a, b = [(x * scale + scale // 2, y * scale + scale // 2) for x, y in ends]
+            pygame.draw.line(surface, CYAN if index == selected else INK, a, b, max(1, scale // 2))
+
+
 def _initial_angles(model_id: int) -> tuple[float, float, float]:
     # Вход Dodo находится на стороне +Z. Открываем станцию доком к зрителю.
     return (155.0 if model_id == DODO_ID else 24.0), 22.0, 0.0
 
 
 class Viewer:
-    def __init__(self, size=(1280, 830), start_mode="ship") -> None:
+    def __init__(self, size=(1280, 830), start_mode="ship", renderer="pixels") -> None:
         pygame.init()
         self.screen = pygame.display.set_mode(size, pygame.RESIZABLE)
         pygame.display.set_caption("Elite — ручной рендерер и пиксельный цикл")
@@ -72,8 +117,9 @@ class Viewer:
         self.title_font = pygame.font.Font(font_path, 25)
         self.mono = pygame.font.Font(mono_path, 16)
         self.mode = start_mode
+        self.renderer = renderer
         self.model_id = COBRA_ID
-        self.vertex_tests = [model.vertex_test_default for model in MODELS]
+        self.face_tests = [model.default_face_test for model in MODELS]
         self.catalog_cursor = COBRA_ID
         self.thumbnails: list[pygame.Surface] = []
         self.yaw, self.pitch, self.roll = _initial_angles(self.model_id)
@@ -90,8 +136,6 @@ class Viewer:
         self.dragging: int | None = None
         self.grid = True
         self.geometry = None
-        self.ship_frame = Framebuffer()
-        self.line_trace: LineTrace = trace_line(*self.line_points)
         self.viewport = pygame.Rect(20, 110, 768, 384)
         self.scale = 3
         self.tabs: list[pygame.Rect] = []
@@ -119,17 +163,17 @@ class Viewer:
 
     def rebuild_ship(self) -> None:
         pose = pose_from_angles(self.yaw, self.pitch, self.roll, self.depth)
-        self.geometry = render_geometry(self.model, pose, use_face_vertices=self.use_face_vertices)
-        self.ship_lines = _ship_lines(self.geometry)
-        self.ship_frame = _ship_frame(self.ship_lines)
+        self.geometry = render_geometry(self.model, pose, face_test=self.face_test)
+        self.ship_lines = _ship_lines(self.geometry, self.renderer)
+        self.ship_frame = _ship_frame(self.ship_lines) if self.renderer == "pixels" else None
 
     @property
     def model(self):
         return MODELS[self.model_id]
 
     @property
-    def use_face_vertices(self):
-        return self.vertex_tests[self.model_id]
+    def face_test(self):
+        return self.face_tests[self.model_id]
 
     def choose_model(self, index: int) -> None:
         self.mode = "ship"
@@ -141,7 +185,7 @@ class Viewer:
             self.yaw, self.pitch, self.roll = _initial_angles(index)
         self.depth = initial_depth(self.model_id)
         self.rebuild_ship()
-        self.edge_index = next((index for index, trace in self.ship_lines.items() if trace.steps), 0)
+        self.edge_index = next((index for index, line in self.ship_lines.items() if line.count), 0)
 
     def zoom(self, notches: int) -> None:
         """Одинаковый ход колеса и клавиш. Вблизи шаг уменьшается до 16."""
@@ -158,6 +202,13 @@ class Viewer:
 
     def show_clipping_example(self, model_id: int) -> None:
         self.choose_model(model_id)
+        if model_id == KRAIT_ID:
+            # Дробные углы воспроизводят проекции концов со скриншота.
+            self.yaw, self.pitch, self.roll = _KRAIT_CLIP_ANGLES
+            self.depth, self.edge_index = 256, 8
+            self.rotate_running = False
+            self.rebuild_ship()
+            return
         if model_id == 0:
             # Исходный пример Coriolis: точка A ребра 02 выше экрана, Z80 начинает с B.
             self.yaw, self.depth, self.edge_index = 155.0, 640, 2
@@ -180,6 +231,31 @@ class Viewer:
         self.rotate_running = False
         self.rebuild_ship()
 
+    def show_krait_underside(self) -> None:
+        self.choose_model(KRAIT_ID)
+        first, second = _KRAIT_UNDERSIDE
+        self.yaw, self.pitch, self.roll = second if (self.yaw, self.pitch, self.roll) == first else first
+        self.depth, self.edge_index = 256, 8
+        self.rotate_running = False
+        self.rebuild_ship()
+
+    def show_cobra_wing(self, model_id: int) -> None:
+        self.choose_model(model_id)
+        first, second = _COBRA_WING_VIEWS
+        same_edge = self.edge_index == _COBRA_WING_EDGE and self.face_test == "elite"
+        view = (self.yaw, self.pitch, self.roll, self.depth)
+        self.yaw, self.pitch, self.roll, self.depth = second if same_edge and view == first else first
+        if self.face_test != "elite":
+            self.face_tests[model_id] = "elite"
+            self.thumbnails.clear()
+        self.edge_index = _COBRA_WING_EDGE
+        self.rotate_running = False
+        self.rebuild_ship()
+
+    @cached_property
+    def line_trace(self) -> LineTrace:
+        return trace_line(*self.line_points)
+
     def rebuild_line(self) -> None:
         self.line_trace = trace_line(*self.line_points)
         self.line_count = min(self.line_count, len(self.line_trace.steps))
@@ -188,7 +264,7 @@ class Viewer:
         decision = self.geometry.edge_decisions[self.edge_index]
         if decision.draw:
             self.line_points = [decision.start, decision.end]
-            self.line_source = f"{self.model.name}, ребро {self.edge_index}"
+            self.line_source = f"{self.model.name}, ребро {self.edge_index} · Z = {self.depth}"
             self.rebuild_line()
             self.line_count = 0
             self.line_running = False
@@ -202,7 +278,12 @@ class Viewer:
 
     def draw_header(self) -> None:
         self.text("ELITE / ПИКСЕЛЬ ЗА ПИКСЕЛЕМ", (20, 18), INK, self.title_font)
-        self.text("ZX Spectrum → читаемый Python · pygame показывает готовый bitmap", (20, 53), MUTED, self.small)
+        if self.mode == "line":
+            subtitle = "Шаги линии · ручной пиксельный цикл ZX Spectrum"
+        else:
+            method = "линии pygame" if self.renderer == "lines" else "пиксели ZX Spectrum"
+            subtitle = f"Каркас · {method}    L — переключить рендерер"
+        self.text(subtitle, (20, 53), MUTED, self.small)
         self.tabs = [pygame.Rect(20, 80, 185, 27), pygame.Rect(215, 80, 245, 27),
                      pygame.Rect(470, 80, 220, 27)]
         for rect, mode, label in zip(self.tabs, ("ship", "line", "catalog"),
@@ -228,34 +309,34 @@ class Viewer:
             self.text(label, (label_x, label_y), color, self.small)
         self.screen.set_clip(None)
 
-    def mark_line(self, trace: LineTrace) -> None:
-        if trace.clip_status == "inside":
-            self.mark(trace.start, CYAN, "A")
-            self.mark(trace.end, AMBER, "B")
-        elif trace.steps:
-            first = trace.steps[0]
-            last = trace.last_visible
-            self.mark((first.x, first.y), CYAN, "1")
-            self.mark((last.x, last.y), AMBER, "n")
+    def mark_line(self, line: LineTrace | ScreenSegment) -> None:
+        ends = line.endpoints
+        if ends:
+            a, b = ("A", "B") if line.clip_status == "inside" else ("1", "n")
+            self.mark(ends[0], CYAN, a)
+            self.mark(ends[1], AMBER, b)
 
     def draw_ship(self, panel_x: int, panel_width: int) -> None:
-        self.draw_bitmap(self.ship_frame)
         selected = self.geometry.edge_decisions[self.edge_index]
         trace = self.ship_lines.get(selected.index)
+        if self.renderer == "lines":
+            _draw_segments(self.screen.subsurface(self.viewport), self.ship_lines, self.scale, selected.index)
+            pygame.draw.rect(self.screen, GRID, self.viewport.inflate(2, 2), 1)
+        else:
+            self.draw_bitmap(self.ship_frame)
+            if trace:
+                for step in trace.steps:
+                    if step.in_bitmap:
+                        pygame.draw.rect(self.screen, CYAN,
+                                         (self.viewport.x + step.x * self.scale,
+                                          self.viewport.y + step.y * self.scale,
+                                          self.scale, self.scale))
         if trace:
-            # Подсветка использует те же ПИКСЕЛИ, а не второй line-алгоритм.
-            for step in trace.steps:
-                if not step.in_bitmap:
-                    continue
-                pygame.draw.rect(self.screen, CYAN,
-                                 (self.viewport.x + step.x * self.scale,
-                                  self.viewport.y + step.y * self.scale,
-                                  self.scale, self.scale))
             self.mark_line(trace)
         y = 118
         self.text(self.model.name, (panel_x, y), CYAN, self.title_font)
         y += 40
-        drawn = sum(bool(line.steps) for line in self.ship_lines.values())
+        drawn = sum(line.count > 0 for line in self.ship_lines.values())
         clipped = sum(line.clip_status == "clipped" for line in self.ship_lines.values())
         precision = self.geometry.details["vertex_precision"]
         near_count = sum(shift > 0 for shift, _ in precision.values())
@@ -267,7 +348,7 @@ class Viewer:
             self.text(line, (panel_x, y), MUTED, self.small)
             y += 24
         if self.model.face_vertices:
-            method = "через вершину грани" if self.use_face_vertices else "оригинальный тест Elite"
+            method = _FACE_LABELS[self.face_test]
             self.text(f"Видимость: {method}  ·  F — сменить", (panel_x, y), CYAN, self.small)
             y += 24
         y += 14
@@ -276,7 +357,7 @@ class Viewer:
         edge = self.model.edges[self.edge_index]
         a, b = edge.faces
         face_label = f"Грани: {a}, {b}"
-        if self.model.face_vertices and self.use_face_vertices:
+        if self.model.face_vertices and self.face_test == "vertex":
             anchors = self.model.face_vertices
             face_label += f"  ·  опорные вершины: {anchors[a]}, {anchors[b]}"
         for line in (f"Вершины: {edge.vertex_a} → {edge.vertex_b}",
@@ -286,7 +367,7 @@ class Viewer:
             self.text(line, (panel_x, y), MUTED)
             y += 27
         reason = {
-            "draw": "Проверки пройдены: передать весь отрезок на рисование.",
+            "draw": "Оба конца в окне. Ребро передаётся на рисование целиком.",
             "distance": "Дальность достигла порога этой детали.",
             "faces": "Оба связанных флага граней равны нулю.",
             "vertex_not_projected": "Одна из вершин не была спроецирована.",
@@ -295,30 +376,53 @@ class Viewer:
         status = "РИСУЕТСЯ" if selected.draw else "ПРОПУЩЕНО"
         if trace and trace.clip_status == "clipped":
             status = "ОБРЕЗАНО"
-            last = trace.last_visible
-            reason = (f"Пиксели в окне: 1 = {(trace.steps[0].x, trace.steps[0].y)}, n = {(last.x, last.y)}."
+            first, last = trace.endpoints
+            reason = (f"Границы видимой части: 1 = {first}, n = {last}."
                       " Ниже — исходные проекции.")
-        elif trace and not trace.steps:
+        elif trace and not trace.count:
             status = "ОТСЕЧЕНО"
             reason = "Клиппер $B044 завершился до первой записи пикселя."
-        self.text(status, (panel_x, y), CYAN if status == "РИСУЕТСЯ" else AMBER)
+        counter = "записей ZX" if self.renderer == "lines" else "записей"
+        label = f"{status} · {counter} {trace.count}" if trace else status
+        self.text(label, (panel_x, y), CYAN if status == "РИСУЕТСЯ" else AMBER)
         y = self.wrapped(reason, panel_x, y + 27, panel_width)
         if selected.start and selected.end:
             self.text(f"A ({selected.start.x}, {selected.start.y})", (panel_x, y + 7), CYAN, self.mono)
             self.text(f"B ({selected.end.x}, {selected.end.y})", (panel_x, y + 31), AMBER, self.mono)
             y += 64
         if selected.draw:
-            y = self.wrapped("Enter — разобрать это ребро по пикселям", panel_x, y + 8, panel_width, CYAN)
+            y = self.wrapped("Enter — разобрать пиксели ZX для этого ребра", panel_x, y + 8, panel_width, CYAN)
         self.wrapped("Флаги граней выбирают ребро целиком. Перекрытие его середины другими поверхностями не проверяется.",
                      panel_x, y + 10, panel_width)
 
         base = self.viewport.bottom + 18
         self.text("← → / ↑ ↓ — вращение    Q / E — крен    колесо / + − — расстояние", (20, base), MUTED, self.small)
         self.text("[ ] — выбрать ребро    Enter — его пиксели    Space — автоповорот    R — сброс", (20, base + 26), MUTED, self.small)
+        guide = (f"Фронтальный вид · Z от {minimum_depth(self.model_id)} до 6000. У границы окна 256 × 128 "
+                 "метки 1 и n показывают начало и конец видимой части обрезанного ребра. "
+                 "Клавиша 3 открывает каталог моделей.")
         if self.model.face_vertices:
-            self.text("P — ракурс с расхождением тестов граней", (20, base + 50), CYAN, self.small)
-        self.wrapped(f"Фронтальный вид · Z от {minimum_depth(self.model_id)} до 6000. У границы окна 256 × 128 метки 1 и n показывают первый и последний видимые пиксели обрезанного ребра. Клавиша 3 открывает каталог моделей.",
-                     20, base + 69, self.viewport.width, MUTED)
+            presets = "P — ракурс с расхождением тестов граней"
+            if self.model_id in COBRA_IDS:
+                presets += "    W — вогнутое ребро крыла"
+                view = (self.yaw, self.pitch, self.roll, self.depth)
+                if self.edge_index == _COBRA_WING_EDGE and self.face_test == "elite":
+                    if view == _COBRA_WING_VIEWS[0]:
+                        guide = ("Середину ребра 20 заслоняет грань 5. У соседней грани 3 флаг равен 1, "
+                                 "поэтому Elite рисует весь сгиб. W — изменить наклон на 3°.")
+                    elif view == _COBRA_WING_VIEWS[1]:
+                        guide = ("Оба конца сгиба остаются в окне. Флаги граней 3 и 1 равны нулю, "
+                                 "и Elite пропускает всё ребро ещё до клиппинга. W — вернуться.")
+            elif self.model_id == KRAIT_ID:
+                presets = "U — два вида снизу    C — клиппинг ребра 08    P — сравнение тестов граней"
+                if (self.yaw, self.pitch, self.roll) in _KRAIT_UNDERSIDE and self.depth == 256:
+                    guide = ("В этих ракурсах к камере обращены нижние грани 1 и 2. "
+                             "F меняет тест при той же позе, U показывает другой ракурс.")
+                elif (self.yaw, self.pitch, self.roll) == _KRAIT_CLIP_ANGLES:
+                    guide = ("В примере C нажимайте + для приближения. При Z = 256 ребро целиком в окне, "
+                             "при 208 выходит за правый край, при 192 исчезает.")
+            self.text(presets, (20, base + 50), CYAN, self.small)
+        self.wrapped(guide, 20, base + 69, self.viewport.width, MUTED)
         y = base + 143
         self.text("ФЛАГИ ГРАНЕЙ" if self.model.faces else "КОНТУР БЕЗ ГРАНЕЙ", (20, y), INK, self.small)
         for index, value in enumerate(self.geometry.face_flags[:len(self.model.faces)]):
@@ -434,8 +538,13 @@ class Viewer:
             # Те же пиксели, что и в основном окне. Для карточки обрезаем пустые поля.
             for index, model in enumerate(MODELS):
                 pose = pose_from_angles(*_initial_angles(index), initial_depth(index))
-                geometry = render_geometry(model, pose, use_face_vertices=self.vertex_tests[index])
-                surface = _surface(_ship_frame(_ship_lines(geometry)))
+                geometry = render_geometry(model, pose, face_test=self.face_tests[index])
+                lines = _ship_lines(geometry, self.renderer)
+                if self.renderer == "lines":
+                    surface = pygame.Surface((256, 128))
+                    _draw_segments(surface, lines, 1)
+                else:
+                    surface = _surface(_ship_frame(lines))
                 surface.set_colorkey(PAPER)
                 self.thumbnails.append(surface.subsurface(surface.get_bounding_rect()).copy())
         self.text("Щёлкните по модели или выберите её стрелками и нажмите Enter", (20, 120), MUTED, self.small)
@@ -512,6 +621,11 @@ class Viewer:
         elif key == pygame.K_3:
             self.mode = "catalog"
             self.catalog_cursor = self.model_id
+        elif key == pygame.K_l and self.mode in ("ship", "catalog"):
+            self.renderer = "lines" if self.renderer == "pixels" else "pixels"
+            self.rotate_running = False
+            self.thumbnails.clear()
+            self.rebuild_ship()
         elif self.mode == "catalog":
             moves = {pygame.K_LEFT: -1, pygame.K_RIGHT: 1, pygame.K_UP: -5, pygame.K_DOWN: 5}
             if key in moves:
@@ -522,11 +636,21 @@ class Viewer:
             if key == pygame.K_SPACE:
                 self.rotate_running = not self.rotate_running
             elif key == pygame.K_f and self.model.face_vertices:
-                self.vertex_tests[self.model_id] = not self.use_face_vertices
+                modes = ("hull", "elite", "vertex") if self.model.hull_triangles else ("elite", "vertex")
+                self.face_tests[self.model_id] = modes[(modes.index(self.face_test) + 1) % len(modes)]
                 self.rotate_running = False
                 self.thumbnails.clear()
             elif key == pygame.K_p and self.model.face_vertices:
                 self.show_face_example()
+                return True
+            elif key == pygame.K_c and self.model_id == KRAIT_ID:
+                self.show_clipping_example(KRAIT_ID)
+                return True
+            elif key == pygame.K_u and self.model_id == KRAIT_ID:
+                self.show_krait_underside()
+                return True
+            elif key == pygame.K_w and self.model_id in COBRA_IDS:
+                self.show_cobra_wing(self.model_id)
                 return True
             elif key in (pygame.K_LEFTBRACKET, pygame.K_RIGHTBRACKET):
                 self.edge_index = (self.edge_index + (-1 if key == pygame.K_LEFTBRACKET else 1)) % len(self.model.edges)
@@ -618,7 +742,9 @@ def main(argv=None) -> None:
         return seconds
 
     parser = argparse.ArgumentParser(description="Учебный ручной рендерер ZX Spectrum Elite")
-    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces", "space", "flyby"), default="ship")
+    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces", "underside", "wing", "space", "flyby"), default="ship")
+    parser.add_argument("--renderer", choices=("pixels", "lines"), default="pixels",
+                        help="Рисовать каркас пикселями ZX или линиями pygame")
     parser.add_argument("--model", type=int, metavar="ID",
                         help="Номер модели в каталоге, например 19 для Dodo")
     parser.add_argument("--screenshot", type=Path, help="Сохранить кадр UI и выйти (для проверки)")
@@ -677,14 +803,23 @@ def main(argv=None) -> None:
         parser.error(f"Номер модели должен быть от 0 до {len(MODELS)-1}")
     if args.no_hud:
         parser.error("--no-hud относится к режимам --mode space/flyby")
+    if args.mode == "underside" and args.model not in (None, KRAIT_ID):
+        parser.error("Пример вида снизу использует Krait (модель 17)")
+    if args.mode == "wing" and args.model is not None and args.model not in COBRA_IDS:
+        parser.error("Пример вогнутого крыла использует Cobra Mk III (модели 9 и 12)")
     if args.mode == "faces" and args.model is not None and not MODELS[args.model].face_vertices:
         parser.error(f"У модели {MODELS[args.model].name} нет граней для сравнения")
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
         os.environ["SDL_AUDIODRIVER"] = "dummy"
-    viewer = Viewer(start_mode="ship" if args.mode in ("clip", "faces") else args.mode)
+    viewer = Viewer(start_mode="ship" if args.mode in ("clip", "faces", "underside", "wing") else args.mode,
+                    renderer=args.renderer)
     if args.mode == "clip":
         viewer.show_clipping_example(0 if args.model is None else args.model)
+    elif args.mode == "underside":
+        viewer.show_krait_underside()
+    elif args.mode == "wing":
+        viewer.show_cobra_wing(COBRA_ID if args.model is None else args.model)
     elif args.mode == "faces":
         viewer.choose_model(DODO_ID if args.model is None else args.model)
         viewer.show_face_example()

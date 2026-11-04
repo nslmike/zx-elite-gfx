@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from elite_lab.controls import pose_from_angles
-from elite_lab.model import COBRA_ID, DODO_ID, MODELS, minimum_depth
+from elite_lab.model import COBRA_ID, COBRA_IDS, DODO_ID, MODELS, minimum_depth
 from elite_lab.raster import apply_trace, trace_line
 from elite_lab.reference import reference_geometry, reference_line
 from elite_lab.renderer import render_geometry
@@ -202,6 +202,10 @@ def main() -> None:
         parser.error("Количество тестов должно быть неотрицательным")
     verify_dodo_faces()
     verify_face_examples()
+    # Два контрольных кадра ребра 20 — весь отрезок и пропуск до клиппинга.
+    for model_id in COBRA_IDS:
+        for pitch in (-28, -25):
+            verify_geometry(pose_from_angles(60, pitch, 0, 384), model_id)
     rng = random.Random(args.seed)
     line_count = line_writes = 0
     for start, end in line_cases(args.lines, rng):

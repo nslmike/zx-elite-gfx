@@ -10,11 +10,33 @@ def _within_distance(limit: int, distance: int) -> bool:
     return limit == 31 or distance < limit
 
 
-def classify_faces(model, pose, basis, distance, *, use_face_vertices=None):
-    """$BCD4: флаг означает результат проверки нормали, а не отсутствие окклюзии."""
+def _camera_points(model, pose, basis):
+    # Общий знаменатель 128. Сохраняем полные произведения до проверки стороны плоскости.
+    rows = [tuple(c.signed for c in row) for row in basis]
+    return [tuple(rx * v.x + ry * v.y + rz * v.z + 128 * t
+                  for (rx, ry, rz), t in zip(rows, pose.position)) for v in model.vertices]
+
+
+def _front_facing(a, b, c):
+    # (B−A) × (C−A) · A = det(A, B, C). Начало координат — камера.
+    ax, ay, az = a
+    bx, by, bz = b
+    cx, cy, cz = c
+    return ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx) < 0
+
+
+def classify_faces(model, pose, basis, distance, *, use_face_vertices=None, face_test=None):
+    """Флаги $BCD4 или учебная проверка по плоскостям корпуса."""
     flags = [1] * 16  # В том числе специальный индекс 15, как в оригинале.
-    if use_face_vertices is None:
-        use_face_vertices = model.vertex_test_default
+    if use_face_vertices is not None:
+        if face_test is not None:
+            raise ValueError("Выберите тест одним параметром")
+        face_test = "vertex" if use_face_vertices else "elite"
+    if face_test is None:
+        face_test = model.default_face_test
+    if face_test not in ("elite", "vertex", "hull") or (face_test == "hull" and not model.hull_triangles):
+        raise ValueError(f"Тест граней {face_test!r} недоступен для модели {model.name}")
+    hull_points = _camera_points(model, pose, basis) if face_test == "hull" else None
     normals = []
     for index, face in enumerate(model.faces):
         rotated = rotate_components((face.nx, face.ny, face.nz), basis)
@@ -22,8 +44,12 @@ def classify_faces(model, pose, basis, distance, *, use_face_vertices=None):
         if not _within_distance(face.distance_limit, distance):
             flags[index] = 0
             continue
+        if hull_points is not None:
+            a, b, c = model.hull_triangles[index]
+            flags[index] = int(_front_facing(hull_points[a], hull_points[b], hull_points[c]))
+            continue
         anchor = (None, None, None)
-        if use_face_vertices and model.face_vertices:
+        if face_test == "vertex" and model.face_vertices:
             vertex = model.vertices[model.face_vertices[index]]
             anchor = rotate_components((vertex.x, vertex.y, vertex.z), basis)
         pairs = [line_of_sight_component(position, component, model.normal_scale, point)
@@ -108,7 +134,7 @@ def select_edges(model, distance, face_flags, projected):
     return decisions
 
 
-def render_geometry(model, pose, *, use_face_vertices=None):
+def render_geometry(model, pose, *, use_face_vertices=None, face_test=None):
     """От исходных таблиц до отрезков; библиотека рисования здесь не участвует."""
     x, y, z = pose.position
     if x != 0 or y != 0 or not 1 <= z <= 6000:
@@ -117,7 +143,8 @@ def render_geometry(model, pose, *, use_face_vertices=None):
         raise ValueError("Компоненты nose/roof должны лежать в [-127,127]")
     distance = max(0, min(31, z >> 7) - 2)  # $A854–$A867
     basis = make_basis(pose.nose, pose.roof)
-    flags, normals = classify_faces(model, pose, basis, distance, use_face_vertices=use_face_vertices)
+    flags, normals = classify_faces(model, pose, basis, distance,
+                                    use_face_vertices=use_face_vertices, face_test=face_test)
     precision = {}
     projected, transformed = project_vertices(model, pose, basis, distance, flags, precision_trace=precision)
     decisions = select_edges(model, distance, flags, projected)
