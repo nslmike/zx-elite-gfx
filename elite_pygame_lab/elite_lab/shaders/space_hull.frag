@@ -9,10 +9,9 @@ uniform bool u_cross_bitangent;
 uniform bool u_cobra_finishes;
 uniform bool u_classic_finishes;
 uniform vec4 u_finish_layout;
-uniform vec4 u_finish_response;
-uniform vec4 u_damage_profile;
+uniform vec2 u_finish_response;
+uniform vec2 u_damage_profile;
 uniform vec3 u_glass_tint;
-uniform sampler2D u_finish_slope;
 uniform mat4 u_model;
 uniform sampler2D u_diffuse_map;
 uniform sampler2D u_normal_map;
@@ -186,43 +185,6 @@ float classic_paint_loss() {
                    smoothstep(0.42, 0.64, coarse) * resolved;
     wounds *= max(u_damage_profile.x - 0.48, 0.0);
     return clamp(weather * (rub * 1.45 + wounds * 1.85), 0.0, 1.0);
-}
-
-// RG общей карты содержит широкую фаску конструктивных швов, BA —
-// вмятины с валиками. Это dH/dUV до mip-фильтрации, а не разности
-// соседних экранных отсчётов. Глубина задаётся в единицах самого корпуса.
-vec3 classic_relief(vec2 uv, vec2 old_height_xy, float damage, float equipment,
-                    float metal) {
-    vec4 slope = texture(u_finish_slope, uv);
-    vec2 dx = dFdx(uv), dy = dFdy(uv);
-    vec2 seams = vec2(dot(slope.rg, dx), dot(slope.rg, dy));
-    vec2 dents = vec2(dot(slope.ba, dx), dot(slope.ba, dy));
-    float scale = max(u_texture_scale, 0.5);
-    float model_scale = length(u_model[0].xyz);
-    float structural = 0.0060 * u_finish_response.z / scale;
-    float dent_depth = 0.0260 * u_finish_response.w * u_damage_profile.z / scale;
-    dent_depth *= 0.40 + 0.60 * u_wear;
-    // Тонкий родной G сохраняет прежнюю мировую глубину: её усиление
-    // давало скачки блика на 1–2 texel. Весь крупный рельеф создают
-    // отдельные широкие фаски и заломы с глубиной в единицах корпуса.
-    vec2 height_xy = old_height_xy * (0.0028 / (scale * model_scale))
-                  + seams * structural + dents * dent_depth;
-
-    // Редкие направленные риски: фаза привязана к UV, амплитуда уходит
-    // до Найквиста. Производные берутся в согласованном потоке исполнения.
-    float islands = value_noise(vec3(uv * vec2(19.0, 11.0), u_seed + 4.7));
-    float q = uv.y * 427.0 + islands * 1.7;
-    float resolved = 1.0 - smoothstep(0.20, 0.45, fwidth(q));
-    float phase = q * (2.0 * PI);
-    float scratch = cos(phase) * resolved;
-    float patch = smoothstep(0.48, 0.73, islands) *
-                  smoothstep(0.18, 0.55, damage) * smoothstep(0.64, 0.96, equipment);
-    float fine_depth = 0.000026 * u_damage_profile.w * u_finish_response.w *
-                       (0.35 + u_wear) * patch / scale;
-    height_xy += fine_depth * (2.0 * PI) * scratch * vec2(dFdx(q), dFdy(q));
-    // Шлифованная силовая секция имеет рельеф, но не шероховатость краски.
-    height_xy *= mix(1.0, 0.55, metal);
-    return relief_from_gradient(normalize(v_normal), height_xy, model_scale);
 }
 
 float frosted_box(vec2 p, vec2 half_size, float scatter) {
@@ -419,13 +381,11 @@ Surface procedural_surface() {
             albedo = mix(albedo, alloy, metal);
             roughness = mix(roughness, clamp(u_finish_response.x + damage * 0.10 + wear * 0.05, 0.19, 0.70), metal);
             metallic = mix(metallic, 0.97, metal);
-            n = classic_relief(uv, height_xy, damage, equipment, metal);
         } else if (v_material == 1 || v_material == 4) {
             albedo = u_metal_color * mix(0.52, 1.06, panel_tone);
             albedo *= mix(0.64, 1.0, equipment);
             roughness = clamp(u_finish_response.x + damage * 0.12 + wear * 0.05, 0.19, 0.70);
             metallic = 0.96;
-            n = classic_relief(uv, height_xy, damage, equipment, 1.0);
         } else if (v_material == 2) {
             // Матовый фонарь: широкий диэлектрический блик и рассеяние,
             // без металлического F0 и без прозрачности всего корабля.
@@ -436,7 +396,7 @@ Surface procedural_surface() {
             occlusion = 1.0;
         } else if (v_material == 6) {
             // Сенсор/освещённое окно: гладкое защитное стекло над прежней
-            // эмиссией. Наклоны швов и вмятины на него не переносятся.
+            // эмиссией. Наклоны швов на него не переносятся.
             n = normalize(v_normal);
             albedo = mix(albedo, u_glass_tint * 0.035, 0.75);
             roughness = u_finish_response.y;

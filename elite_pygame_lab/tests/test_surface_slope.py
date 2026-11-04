@@ -44,24 +44,20 @@ class SurfaceSlopeTests(unittest.TestCase):
         np.testing.assert_array_equal(turned[:, :, 0], np.rot90(slope[:, :, 1]))
         np.testing.assert_array_equal(turned[:, :, 1], -np.rot90(slope[:, :, 0]))
 
-    def test_classic_bevel_is_wide_and_dent_gradients_are_periodic(self):
-        # Два исходных texel шва становятся широкой настоящей фаской,
-        # а не только усиливают старую однопиксельную производную.
-        pixels = np.full((1024, 1024, 4), 160, dtype="u1")
-        pixels[:, 512:514, 1] = 76
+    def test_relief_stays_on_source_height_without_changing_other_channels(self):
+        # Износ в B и оборудование в A не создают самостоятельный рельеф:
+        # наклон есть лишь по обе стороны единственного исходного G-шва.
+        pixels = np.random.default_rng(7).integers(0, 256, (8, 8, 4), dtype="u1")
+        pixels[:, :, 1] = 128
+        pixels[:, 3, 1] = 0
         original = pixels.copy()
-        with patch.object(space_look, "_SURFACE_SIZE", 1024), patch.object(space_look, "_FINISH_SIZE", 512):
-            bevel, dents = space_look._finish_heightfields(pixels.tobytes())
-            data = space_look._finish_slope_bytes(pixels.tobytes())
-        slope = np.frombuffer(data, dtype="f2").reshape(512, 512, 4).astype("f4")
-        self.assertGreaterEqual(np.count_nonzero(bevel[100] < -.01), 13)
-        self.assertLess(float(dents.min()), -.2)
-        self.assertGreater(float(dents.max()), .02)  # Приподнятый валик удара.
-        for offset, height in ((0, bevel), (2, dents)):
-            expected_u = (np.roll(height, -1, axis=1) - np.roll(height, 1, axis=1)) * 256
-            expected_v = (np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)) * 256
-            np.testing.assert_allclose(slope[:, :, offset], expected_u, atol=.016, rtol=.001)
-            np.testing.assert_allclose(slope[:, :, offset + 1], expected_v, atol=.016, rtol=.001)
+        with patch.object(space_look, "_SURFACE_SIZE", 8):
+            data = space_look._surface_slope_bytes(pixels.tobytes())
+        slope = np.frombuffer(data, dtype="f2").reshape(8, 8, 2)
+        expected = np.zeros((8, 8, 2))
+        expected[:, 2, 0] = -128 * 4 / 255
+        expected[:, 4, 0] = 128 * 4 / 255
+        np.testing.assert_allclose(slope, expected, rtol=.001)
         np.testing.assert_array_equal(pixels, original)
 
     def test_classic_profiles_never_replace_imported_or_authored_styles(self):
@@ -69,7 +65,7 @@ class SurfaceSlopeTests(unittest.TestCase):
             look = space_look.SpaceLook.__new__(space_look.SpaceLook)
             look.hull = defaultdict(SimpleNamespace)
             texture = SimpleNamespace(use=lambda **_: None)
-            for name in ("_surface", "_surface_slope", "_finish_slope", "_sky", "_stencils"):
+            for name in ("_surface", "_surface_slope", "_sky", "_stencils"):
                 setattr(look, name, texture)
             look.configure_model(model_id, **kwargs)
             return {key: value.value for key, value in look.hull.items()}
@@ -88,13 +84,11 @@ class SurfaceSlopeTests(unittest.TestCase):
                     self.assertEqual(foreign["u_metal_color"], space_look._linear(style.metal))
 
         # Грузовые манёвры обтирают вдоль корпуса; боевые повреждения пиратов
-        # сильнее дробят края и мнут листы, при ином силовом наборе.
+        # сильнее дробят края краски, при ином силовом наборе.
         transport, pirate = (uniforms(model_id) for model_id in (10, 11))
         self.assertNotEqual(transport["u_finish_layout"], pirate["u_finish_layout"])
         self.assertGreater(transport["u_damage_profile"][1], pirate["u_damage_profile"][1])
         self.assertGreater(pirate["u_damage_profile"][0], transport["u_damage_profile"][0])
-        self.assertGreater(pirate["u_damage_profile"][2], transport["u_damage_profile"][2])
-        self.assertLess(uniforms(8)["u_damage_profile"][2], transport["u_damage_profile"][2] * .1)
 
 
 if __name__ == "__main__":

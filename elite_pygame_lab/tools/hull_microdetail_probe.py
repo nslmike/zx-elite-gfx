@@ -86,11 +86,11 @@ class ProbeFlightScene(space_viewer.SpaceScene):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.microdetail_enabled = True
+        self.microdetail_enabled = False
         self.reset_probe()
 
     def reset_probe(self):
-        """R возвращает классическую Cobra и тот же close-план, что на PNG."""
+        """R возвращает Cobra и close-план с PNG, сохраняя выбор слоя A/B."""
         self.set_source("elite")
         self.selected = 9
         self.texture_source = "procedural"
@@ -152,8 +152,8 @@ class ProbeFlightControls(space_viewer.SpaceControls):
         self._caption()
 
     def _caption(self):
-        state = "ВКЛ" if self.scene.microdetail_enabled else "ВЫКЛ"
-        pygame.display.set_caption(f"Elite · Проба обшивки · B: {state} · R: к борту · O: кольцо")
+        state = "B: пробный слой" if self.scene.microdetail_enabled else "A: штатная обшивка"
+        pygame.display.set_caption(f"Elite · Проба обшивки · {state} · B: переключить · R: к борту · O: кольцо")
 
     def event(self, e, logical_size, drawable_size):
         if e.type == pygame.KEYDOWN and e.key == pygame.K_b:
@@ -169,7 +169,8 @@ class ProbeFlightControls(space_viewer.SpaceControls):
 
 def run_flight():
     """Ввод, resize, рендер, переключение наборов и cleanup — общий run_space()."""
-    print("Проба обшивки: B — слой вкл/выкл; R — к борту Cobra09; мышь с зажатой кнопкой — обзор; "
+    print("Проба обшивки: старт A — штатная обшивка; B — пробный слой вкл/выкл; "
+          "R — к борту Cobra09, сохраняя выбор слоя; мышь с зажатой кнопкой — обзор; "
           "WASD/QE — полёт; Shift — быстрее; колесо — вперёд/назад; O — кольцо; "
           "Enter — осмотр; F — свободный полёт; Esc — кольцо/выход.", flush=True)
     with patch.object(space_viewer, "SpaceScene", ProbeFlightScene), \
@@ -239,7 +240,7 @@ def compose(images, destination):
 
     text("Cobra Mk III · №09", margin, 26, 32, bold=True)
     text("Проба микрорельефа обшивки", margin, 67, 22, (150, 176, 182))
-    for index, label in enumerate(("Сейчас", "С микрорельефом")):
+    for index, label in enumerate(("A · Штатная обшивка", "B · Пробный микрорельеф")):
         x = margin + index * (tile + gap)
         text(label, x, 111, 28, bold=True)
         top = pygame.transform.smoothscale(images[("ship", index)], (tile, top_h))
@@ -261,7 +262,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--draft-dir", type=Path, help="Явно сохранить исходные PNG и параметры в этот каталог")
-    parser.add_argument("--fly", action="store_true", help="Свободный полёт у обшивки Cobra09; B — слой, R — к борту")
+    parser.add_argument("--fly", action="store_true", help="Полёт у Cobra09 со штатной обшивкой; B — пробный слой, R — к борту с тем же слоем")
     parser.add_argument("--yaw", type=float, help="Поворот корабля вокруг Y на PNG, градусы")
     parser.add_argument("--distance", type=float, help="Масштаб дистанций обеих камер на PNG")
     args = parser.parse_args()
@@ -295,7 +296,7 @@ def main():
     try:
         images = {}
         for state in (0, 1):
-            # «Сейчас» — буквально исходный shader. Два renderer создаются
+            # A — буквально исходный shader. Два renderer создаются
             # последовательно: не дублируем их код и не держим два тяжёлых неба.
             shaders = ShaderOverlay(space_look._SHADERS, experiment_shader()) if state else space_look._SHADERS
             with patch.object(space_look, "_SHADERS", shaders), \
@@ -316,6 +317,7 @@ def main():
         compose(images, args.output)
         metadata = {"renderer": ctx.info["GL_RENDERER"], "version": ctx.info["GL_VERSION"],
                     "shader_sha256": hashlib.sha256(FRAGMENT.read_bytes()).hexdigest(),
+                    "look_sha256": hashlib.sha256(Path(space_look.__file__).read_bytes()).hexdigest(),
                     "detail_sha256": hashlib.sha256(DETAIL.read_bytes()).hexdigest(),
                     "sun": SUN.tolist(), "yaw": args.yaw, "distance": args.distance,
                     "model": 9, "source": "elite", "samples": min(4, ctx.max_samples),
