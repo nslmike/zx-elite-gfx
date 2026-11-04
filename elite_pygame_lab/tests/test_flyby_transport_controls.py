@@ -1,4 +1,4 @@
-"""Ввод перемотки на настоящей сцене; мышь и M/T/A также покрыты test_flyby_ui."""
+"""Перемотка и переходы в свободный полёт на настоящей динамической сцене."""
 
 from itertools import product
 from types import SimpleNamespace
@@ -11,7 +11,7 @@ try:
     import numpy as np
     from elite_lab.space_assets import AssetCatalog
     from elite_lab.space_flyby import FlybyScene
-    from elite_lab.space_viewer import FlybyControls
+    from elite_lab.space_viewer import FlybyControls, SpaceRenderer
 except ModuleNotFoundError:
     FlybyControls = None
 
@@ -139,6 +139,76 @@ class FlybyTransportControlsTest(unittest.TestCase):
         self.controls.update(1)
         self.assertTrue(self.scene.paused)
         self.assertEqual(self.scene.elapsed, 24)
+
+    def test_free_flight_stops_transport_and_source_clock_but_keeps_animation(self):
+        for paused in (False, True):
+            with self.subTest(paused=paused):
+                self.restart(paused=paused)
+                self.key(pygame.K_RIGHT)
+                self.key(pygame.K_f)
+                self.key(pygame.K_f, down=False)
+                elapsed, source = self.scene.elapsed, self.scene.model_source
+                eye = self.scene.eye.copy()
+                matrix = self.scene.objects[0].matrix.copy()
+                for key in (pygame.K_SPACE, pygame.K_LEFT, pygame.K_r):
+                    self.key(key)
+                self.controls.update(9)
+                self.assertEqual((self.scene.elapsed, self.scene.model_source, self.scene.paused),
+                                 (elapsed, source, paused))
+                np.testing.assert_array_equal(self.scene.eye, eye)
+                self.assertFalse(np.allclose(self.scene.objects[0].matrix, matrix))
+                self.key(pygame.K_f)
+                resumed = self.scene.elapsed
+                self.controls.update(.5)
+                self.assertAlmostEqual(self.scene.elapsed, resumed + (0 if paused else .5))
+
+    def test_held_a_is_released_on_entry_and_cannot_toggle_sources_after_return(self):
+        self.key(pygame.K_a)
+        automatic = self.scene.auto_sources
+        self.key(pygame.K_f)
+        self.key(pygame.K_f, down=False)
+        eye = self.scene.eye.copy()
+        self.key(pygame.K_a, repeat=True)
+        self.controls.update(.1)
+        np.testing.assert_array_equal(self.scene.eye, eye)
+        self.key(pygame.K_a, down=False)
+        self.key(pygame.K_a)
+        self.controls.update(.1)
+        self.assertFalse(np.allclose(self.scene.eye, eye))
+        self.key(pygame.K_f)
+        self.key(pygame.K_a, repeat=True)
+        self.key(pygame.K_a)
+        self.assertEqual(self.scene.auto_sources, automatic)
+        self.key(pygame.K_a, down=False)
+        self.key(pygame.K_a)
+        self.assertEqual(self.scene.auto_sources, not automatic)
+
+
+@unittest.skipIf(FlybyControls is None, "Нужны зависимости requirements-space.txt")
+class FlybyDynamicShadowTest(unittest.TestCase):
+    def test_free_camera_keeps_dynamic_shadow_signature_and_static_cache(self):
+        renderer = SpaceRenderer.__new__(SpaceRenderer)
+        renderer.ctx = SimpleNamespace(enable_only=Mock())
+        renderer.shadow = SimpleNamespace(size=(128, 128))
+        renderer._shadow_target = SimpleNamespace(use=Mock(), clear=Mock())
+        renderer._depth_program = {"light_mvp": Mock()}
+        renderer.look = SimpleNamespace(hull={"u_shadow_vp": Mock(), "u_shadow_enabled": Mock()})
+        renderer._light_axes = np.eye(3)
+        depth = Mock()
+        renderer.meshes = [[SimpleNamespace(depth_vao=depth)]]
+        objects = (SimpleNamespace(position=np.zeros(3), radius=1, matrix=np.eye(4)),)
+        scene = SimpleNamespace(is_flyby=True, camera_mode="flight", objects=objects)
+        renderer._shadow_objects, renderer._shadow_signature = objects, None
+        renderer._update_shadow(scene, [])
+        objects[0].matrix[0, 0] = .9
+        renderer._update_shadow(scene, [])
+        self.assertEqual(depth.render.call_count, 2)
+        renderer._update_shadow(scene, [])
+        self.assertEqual(depth.render.call_count, 2)
+        scene.is_flyby = False
+        objects[0].matrix[0, 0] = .8
+        renderer._update_shadow(scene, [])
+        self.assertEqual(depth.render.call_count, 2)
 
 
 if __name__ == "__main__":

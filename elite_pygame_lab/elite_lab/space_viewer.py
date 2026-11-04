@@ -208,7 +208,7 @@ class SpaceRenderer:
         return min(len(levels) - 1, 2 if diameter_px < 80 else 1 if diameter_px < 220 else 0)
 
     def _update_shadow(self, scene, visible):
-        dynamic = scene.camera_mode == "flyby"
+        dynamic = scene.is_flyby
         # Экспонаты обычного атласа неизменяемы; движение камеры не требует
         # ни прохода глубины, ни пересчёта световой матрицы.
         if not dynamic and self._shadow_objects is scene.objects:
@@ -469,24 +469,31 @@ class SpaceControls:
             self.dragging = False
         return True
 
+    def _movement_state(self):
+        return pygame.key.get_pressed(), pygame.key.get_mods()
+
     def update(self, seconds):
-        keys = pygame.key.get_pressed()
+        keys, modifiers = self._movement_state()
         self.scene.update(seconds, (keys[pygame.K_d] - keys[pygame.K_a], keys[pygame.K_e] - keys[pygame.K_q],
                                     keys[pygame.K_w] - keys[pygame.K_s],
-                                    4 if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1))
+                                    4 if modifiers & pygame.KMOD_SHIFT else 1))
 
 
 class FlybyControls(SpaceControls):
-    """Пауза и перемотка маршрута; ПКМ меняет только относительный взгляд."""
+    """Автопролёт с перемоткой и свободный полёт из текущей точки камеры."""
 
     _scrub_delay = .25
     _scrub_speed = 4.0
+    _movement_keys = (pygame.K_a, pygame.K_d, pygame.K_q, pygame.K_e, pygame.K_w, pygame.K_s)
+    _shift_keys = (pygame.K_LSHIFT, pygame.K_RSHIFT)
 
     def __init__(self, scene, hud, show_hud):
         super().__init__(scene, hud, show_hud)
         self.looking = False
         self._mouse_state = None
         self._held_keys = {}
+        self._down_keys = set()
+        self._flight_keys = set()
 
     def _start_look(self):
         if self.looking:
@@ -509,27 +516,46 @@ class FlybyControls(SpaceControls):
             pygame.event.set_grab(grabbed)
             pygame.mouse.set_visible(visible)
 
+    def _release_motion(self):
+        self._stop_look()
+        self.press = None
+        self.dragging = False
+        self._held_keys.clear()
+        self._flight_keys.clear()
+
     def release(self):
         """Снять захват и удержания при потере фокуса и выходе из цикла."""
-        self._stop_look()
-        self._held_keys.clear()
+        self._release_motion()
+        self._down_keys.clear()
+
+    def _movement_state(self):
+        # После смены режима или фокуса движение начинается только с нового
+        # нажатия. Сам расчёт осей и Shift остаётся общим с обычным атласом.
+        keys = {key: key in self._flight_keys for key in self._movement_keys}
+        modifiers = pygame.KMOD_SHIFT if self._flight_keys.intersection(self._shift_keys) else 0
+        return keys, modifiers
 
     def _mode(self, action):
         if action == "menu_credits":
             self.hud.menu = None if self.hud.menu == "credits" else "credits"
             return
         self.hud.menu = None
-        if action == "cycle_source":
+        if action == "toggle_flight":
+            # Клавиши остаются в _down_keys до KEYUP: удержанный F/A или
+            # запоздалый repeat не запускает команду уже в другом режиме.
+            self._release_motion()
+            self.scene.toggle_flight()
+        elif action == "cycle_source":
             self.scene.cycle_source()
         elif action == "cycle_textures":
             self.scene.cycle_textures()
-        elif action == "toggle_auto":
+        elif action == "toggle_auto" and self.scene.camera_mode == "flyby":
             self.scene.toggle_auto_sources()
-        elif action == "toggle_pause":
+        elif action == "toggle_pause" and self.scene.camera_mode == "flyby":
             self.scene.toggle_pause()
-        elif action == "scrub_back":
+        elif action == "scrub_back" and self.scene.camera_mode == "flyby":
             self.scene.scrub(-1.0)
-        elif action == "scrub_forward":
+        elif action == "scrub_forward" and self.scene.camera_mode == "flyby":
             self.scene.scrub(1.0)
 
     def event(self, e, logical_size, drawable_size):
@@ -538,14 +564,18 @@ class FlybyControls(SpaceControls):
             return False
         if e.type == pygame.WINDOWFOCUSLOST:
             self.release()
-            self.press = None
-            self.dragging = False
         elif e.type == pygame.KEYDOWN:
-            if e.key in (pygame.K_SPACE, pygame.K_LEFT, pygame.K_RIGHT):
-                # Удержание считаем по dt, а не по зависящему от ОС autorepeat.
-                # После потери фокуса запоздалый SDL repeat не начинает его снова.
-                if e.key in self._held_keys or getattr(e, "repeat", False):
-                    return True
+            # Удержания считаем по dt, команды выполняем один раз до KEYUP.
+            # После потери фокуса запоздалый SDL repeat не начинает их снова.
+            if e.key in self._down_keys or getattr(e, "repeat", False):
+                return True
+            self._down_keys.add(e.key)
+            flight = self.scene.camera_mode == "flight"
+            if e.key == pygame.K_f:
+                self._mode("toggle_flight")
+            elif flight and e.key in (*self._movement_keys, *self._shift_keys):
+                self._flight_keys.add(e.key)
+            elif not flight and e.key in (pygame.K_SPACE, pygame.K_LEFT, pygame.K_RIGHT):
                 self._held_keys[e.key] = 0.0
                 self._mode({pygame.K_SPACE: "toggle_pause", pygame.K_LEFT: "scrub_back",
                             pygame.K_RIGHT: "scrub_forward"}[e.key])
@@ -561,8 +591,12 @@ class FlybyControls(SpaceControls):
             elif e.key == pygame.K_i:
                 self.show_hud = True
                 self._mode("menu_credits")
-            elif e.key == pygame.K_r:
+            elif e.key == pygame.K_r and not flight:
                 self.scene.reset_look()
+            elif flight and e.key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):
+                self.scene.zoom(1)
+            elif flight and e.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                self.scene.zoom(-1)
             else:
                 action = {pygame.K_m: "cycle_source", pygame.K_t: "cycle_textures",
                           pygame.K_a: "toggle_auto"}.get(e.key)
@@ -570,6 +604,10 @@ class FlybyControls(SpaceControls):
                     self._mode(action)
         elif e.type == pygame.KEYUP:
             self._held_keys.pop(e.key, None)
+            self._down_keys.discard(e.key)
+            self._flight_keys.discard(e.key)
+        elif e.type == pygame.MOUSEWHEEL and self.scene.camera_mode == "flight":
+            self.scene.zoom(getattr(e, "precise_y", e.y))
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 3:
             self._start_look()
         elif e.type == pygame.MOUSEBUTTONUP and e.button == 3:
@@ -593,6 +631,9 @@ class FlybyControls(SpaceControls):
         return True
 
     def update(self, seconds):
+        if self.scene.camera_mode == "flight":
+            super().update(seconds)
+            return
         left = self._held_keys.get(pygame.K_LEFT)
         right = self._held_keys.get(pygame.K_RIGHT)
         if left is None and right is None:

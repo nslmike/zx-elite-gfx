@@ -6,7 +6,7 @@
 а ``scrub(dt)`` перематывает текущий показ, сохраняя ручные настройки.
 """
 
-from math import cos, floor, isfinite, pi, sin, sqrt, tau
+from math import atan2, cos, floor, isfinite, pi, sin, sqrt, tau
 from sys import float_info
 
 import numpy as np
@@ -55,6 +55,7 @@ class FlybyScene(SpaceScene):
     ``seek`` воспроизводит исходный запуск, до ручных M/A; текстуры сохраняет.
     """
 
+    is_flyby = True
     seconds_per_ship = 6.0
     slot_count = 21
     duration = seconds_per_ship * slot_count
@@ -237,10 +238,10 @@ class FlybyScene(SpaceScene):
         return self.paused
 
     @staticmethod
-    def _shift_time(seconds, delta):
+    def _shift_time(seconds, delta, *, lower=0.0):
         # Даже сумма двух конечных float может переполниться. Часы остаются
         # в представимом диапазоне, в том числе при предельной перемотке.
-        return min(float_info.max, max(0.0, seconds + delta))
+        return min(float_info.max, max(lower, seconds + delta))
 
     def scrub(self, delta_seconds):
         """Перемотать текущий показ и вернуть пройденное время маршрута.
@@ -252,10 +253,14 @@ class FlybyScene(SpaceScene):
         delta = float(delta_seconds)
         if not isfinite(delta):
             raise ValueError("Шаг перемотки должен быть конечным")
+        if self.camera_mode == "flight":
+            return 0.0
         elapsed = self._shift_time(self.elapsed, delta)
         moved = elapsed - self.elapsed
         self.elapsed = elapsed
-        self.animation_elapsed = self._shift_time(self.animation_elapsed, moved)
+        # После стыковки с маршрутом вращения могут пройти нулевой угол
+        # назад; нижняя граница начала показа остаётся только у маршрута.
+        self.animation_elapsed = self._shift_time(self.animation_elapsed, moved, lower=-float_info.max)
         self._advance_sources()
         self._animate()
         return moved
@@ -266,7 +271,11 @@ class FlybyScene(SpaceScene):
         if not isfinite(dt):
             raise ValueError("Шаг времени должен быть конечным")
         dt = max(0.0, dt)
-        self.animation_elapsed = self._shift_time(self.animation_elapsed, dt)
+        self.animation_elapsed = self._shift_time(self.animation_elapsed, dt, lower=-float_info.max)
+        if self.camera_mode == "flight":
+            super().update(dt, movement)
+            self._animate()
+            return
         # Удержание стрелок временно отдаёт маршрут командам scrub, не
         # меняя выбранную пользователем паузу. Вращения идут и при этом.
         if not self.paused and advance_route:
@@ -283,6 +292,8 @@ class FlybyScene(SpaceScene):
     @property
     def empty_slot(self):
         """Встреча с зарезервированным местом, для которого в наборе нет гостя."""
+        if self.camera_mode == "flight":
+            return False
         phase = self._start_slot + self.elapsed / self.seconds_per_ship
         focus = self._route[int(floor(phase + .5)) % self.slot_count]
         return focus >= len(self.ships)
@@ -351,6 +362,66 @@ class FlybyScene(SpaceScene):
             matrix.setflags(write=False)
             objects.append(SpaceObject(index, position, obj.radius, matrix))
         self.objects = tuple(objects)
+        if self.camera_mode == "flight":
+            self.selected = self._nearest_object()
+
+    def _nearest_object(self):
+        """Ближайший настоящий центр; пустое гостевое место сюда не попадает."""
+        eye = self.eye
+        return min(self.objects, key=lambda obj: np.linalg.norm(obj.position - eye)).model_id
+
+    def _nearest_visit(self, model_id):
+        """Ближайшее неотрицательное посещение с учётом начального --model.
+
+        У границы круга рассматриваем также соседний круг. При равных
+        расстояниях выбираем будущее; историю не заменяем новым seek(0).
+        """
+        first = ((self._route.index(model_id) - self._start_slot) % self.slot_count
+                 * self.seconds_per_ship)
+        lap = max(0, floor((self.elapsed - first) / self.duration + .5))
+        return min(float_info.max, first + lap * self.duration)
+
+    def fly(self):
+        """Начать свободный полёт с полным текущим видом; повтор не меняет его."""
+        if self.camera_mode == "flight":
+            return
+        self._flight_eye = self.eye
+        right, _, forward = self._view_basis()
+        self._flight_distance = self.distance
+        horizontal = float(np.linalg.norm(forward[[0, 2]]))
+        self._yaw = (atan2(forward[0], -forward[2]) if horizontal > 1e-12
+                     else atan2(right[2], right[0]))
+        self._pitch = atan2(forward[1], horizontal)
+        upright_right = np.array((cos(self._yaw), 0, sin(self._yaw)))
+        upright_up = np.cross(upright_right, forward)
+        self._flight_roll = atan2(np.dot(right, upright_up), np.dot(right, upright_right))
+        self.camera_mode = "flight"
+        self.selected = self._nearest_object()
+
+    def toggle_flight(self):
+        """Передать текущий вид свободной камере или продолжить у соседа.
+
+        Маршрут и его таймер стоят в свободном полёте. Возвращение меняет
+        только точку маршрута: вращения, набор, текстуры, пауза и ручной
+        взгляд автопилота остаются прежними.
+        """
+        if self.camera_mode != "flight":
+            self.fly()
+        else:
+            nearest = self._nearest_object()
+            elapsed = self._nearest_visit(nearest)
+            # Переносим якорь вместе с маршрутом, сохраняя пройденную долю
+            # интервала и ручной выбор, в том числе гостя Pioneer.
+            self._source_epoch += elapsed - self.elapsed
+            self.elapsed = elapsed
+            self.camera_mode = "flyby"
+            self._animate()
+        return self.camera_mode
+
+    def zoom(self, steps):
+        if self.camera_mode == "flight":
+            super().zoom(steps)
+            self.selected = self._nearest_object()
 
     def view_projection(self, aspect):
         projection = super().view_projection(aspect)
@@ -362,16 +433,22 @@ class FlybyScene(SpaceScene):
 
     @property
     def eye(self):
+        if self.camera_mode == "flight":
+            return self._flight_eye.copy()
         return self._camera_eye.copy()
 
     @property
     def target(self):
+        if self.camera_mode == "flight":
+            return self.eye + self.forward * self.distance
         if self._look_yaw == self._look_pitch == 0:
             return self._camera_target.copy()
         return self.eye + self.forward * self.distance
 
     @property
     def forward(self):
+        if self.camera_mode == "flight":
+            return super().forward
         return self._view_basis()[2]
 
     @property
@@ -380,6 +457,14 @@ class FlybyScene(SpaceScene):
         return self._view_basis()[1]
 
     def _view_basis(self):
+        if self.camera_mode == "flight":
+            # Свободный yaw идёт вокруг мировой Y, как в атласе. Отдельный
+            # крен сохраняет входной вид, включая относительный взгляд ПКМ.
+            forward = self.forward
+            right = np.array((cos(self._yaw), 0, sin(self._yaw)))
+            up = np.cross(right, forward)
+            c, s = cos(self._flight_roll), sin(self._flight_roll)
+            return right * c + up * s, up * c - right * s, forward
         forward = _unit(self._camera_target - self._camera_eye)
         right = _unit(np.cross(forward, self._camera_up))
         up = np.cross(right, forward)
@@ -395,13 +480,19 @@ class FlybyScene(SpaceScene):
         dx, dy = float(dx), float(dy)
         if not (isfinite(dx) and isfinite(dy)):
             return
-        self._look_yaw = (self._look_yaw + dx * .005 + pi) % tau - pi
-        self._look_pitch = float(np.clip(self._look_pitch - dy * .005, -pi/2 + .01, pi/2 - .01))
+        if self.camera_mode == "flight":
+            super().drag(dx, dy)
+        else:
+            self._look_yaw = (self._look_yaw + dx * .005 + pi) % tau - pi
+            self._look_pitch = float(np.clip(self._look_pitch - dy * .005, -pi/2 + .01, pi/2 - .01))
 
     def reset_look(self):
         """Только явная команда R возвращает исходное наведение."""
-        self._look_yaw = self._look_pitch = 0.0
+        if self.camera_mode != "flight":
+            self._look_yaw = self._look_pitch = 0.0
 
     @property
     def distance(self):
+        if self.camera_mode == "flight":
+            return self._flight_distance
         return float(np.linalg.norm(self._camera_target - self._camera_eye))

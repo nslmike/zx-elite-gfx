@@ -89,6 +89,7 @@ class SpaceHUD:
         w, h = self.size
         s = self.s
         pad = round(28 * s)
+        flying = scene.camera_mode == "flight"
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
         self.tabs.clear()
         self.markers.clear()
@@ -118,14 +119,27 @@ class SpaceHUD:
         zx = scene.model_source == "zx"
         accent = (235, 245, 255) if zx else _GOLD
         label("E L I T E", pad, 18*s, self.mono, accent)
-        caption = ("АВТОПРОЛЁТ     H  интерфейс  /  Esc  выход" if w > 580*s else
+        mode_title = "СВОБОДНЫЙ ПОЛЁТ" if flying else "АВТОПРОЛЁТ"
+        caption = (f"{mode_title}     H  интерфейс  /  Esc  выход" if w > 580*s else
                    "H интерфейс / Esc выход")
         label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
-        label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
         paused = scene.paused
-        state = "ПАУЗА" if paused else "ПРОЛЁТ"
-        label(f"{self._flyby_clock(scene.elapsed)} · {state} · держать ← / →  4×",
-              pad, 59*s, self.mono, accent if paused else _MUTED, width=w-2*pad)
+        if flying:
+            label(f"РУЧНОЙ ПОЛЁТ · маршрут на паузе · {self._flyby_clock(scene.elapsed)}",
+                  pad, 39*s, self.mono, accent, width=w-2*pad)
+            x, y = pad, 59*s
+            for hint in ("WASD  движение", "Q / E  вниз / вверх", "Shift  быстрее",
+                         "ПКМ  взгляд", "Колесо  вперёд / назад"):
+                width = self.mono.size(hint)[0]
+                if x > pad and x + width > w - pad:
+                    x, y = pad, y + 19*s
+                label(hint, x, y, self.mono, _MUTED, width=w-2*pad)
+                x += width + 16*s
+        else:
+            label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
+            state = "ПАУЗА" if paused else "ПРОЛЁТ"
+            label(f"{self._flyby_clock(scene.elapsed)} · {state} · держать ← / →  4×",
+                  pad, 59*s, self.mono, accent if paused else _MUTED, width=w-2*pad)
 
         empty = bool(getattr(scene, "empty_slot", False))
         ship = None if empty else scene.ships[scene.selected]
@@ -134,13 +148,16 @@ class SpaceHUD:
         textures = "Родные" if authored else "Наша обшивка"
         auto = "вкл" if scene.auto_sources else "выкл"
         wide = w > 760*s
-        groups = ((("toggle_pause", "Пробел", "Продолжить" if paused else "Пауза"),
-                   ("scrub_back", "←", "−1 с"), ("scrub_forward", "→", "+1 с")),
-                  (("cycle_source", "M", f"Модели · {source}" if wide else source),
-                   ("cycle_textures", "T", "Каркас · без текстур" if zx else
-                    (f"Текстуры · {textures}" if wide else textures)),
-                   ("toggle_auto", "A", f"Авто · {auto}"),
-                   ("menu_credits", "I", "Авторы")))
+        flight_button = ("toggle_flight", "F", "К автопролёту" if flying else "Свободный полёт")
+        transport = (flight_button,) if flying else (
+            flight_button, ("toggle_pause", "Пробел", "Продолжить" if paused else "Пауза"),
+            ("scrub_back", "←", "−1 с"), ("scrub_forward", "→", "+1 с"))
+        models = (("cycle_source", "M", f"Модели · {source}" if wide else source),
+                  ("cycle_textures", "T", "Каркас · без текстур" if zx else
+                   (f"Текстуры · {textures}" if wide else textures)))
+        if not flying:
+            models += (("toggle_auto", "A", f"Авто · {auto}"),)
+        groups = (transport, models + (("menu_credits", "I", "Авторы"),))
         gap, bh = round(6*s), round(28*s)
         group_gap = round(22*s)
         prepared = []
@@ -179,9 +196,10 @@ class SpaceHUD:
                 active = ((action == "menu_credits" and self.menu == "credits") or
                           (action == "toggle_pause" and paused))
                 pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
-                if action == "cycle_source":
+                if action in ("cycle_source", "toggle_flight"):
                     pygame.draw.line(surf, accent, rect.topleft, rect.bottomleft, max(1, round(2*s)))
-                label(caption, x + 10*s, y + 4*s, font, color=accent if active or action == "cycle_source" else _MUTED,
+                label(caption, x + 10*s, y + 4*s, font,
+                      color=accent if active or action in ("cycle_source", "toggle_flight") else _MUTED,
                       width=width-round(20*s))
 
         title_y = controls_y - round(38*s)
@@ -192,6 +210,8 @@ class SpaceHUD:
             source_title = FLYBY_SOURCE_NAMES[scene.model_source]
         elif not empty and scene.model_source not in (ship.source_id, "mixed"):
             source_title += f" · замена для {source}"
+        if flying:
+            source_title = "Ближайший объект · " + source_title
         label(source_title, pad, title_y - 19*s, self.mono, _MUTED, width=w-2*pad)
         if self.menu == "credits":
             self._flyby_credits(surf, scene, ship, label, pad, title_y - 30*s)
@@ -228,7 +248,7 @@ class SpaceHUD:
         label("I / Esc  закрыть", pad+12*s, rect.bottom-23*s, self.mono, _MUTED)
 
     def _paint(self, scene, hover, vp):
-        if scene.camera_mode == "flyby":
+        if getattr(scene, "is_flyby", False):
             return self._paint_flyby(scene)
         w, h = self.size
         s = self.s
@@ -411,8 +431,9 @@ class SpaceHUD:
         if self.size != size:
             self._resize(size)
         # Секунды и паузу обновляем независимо от выбора корпуса; карту — при смене проекции.
-        playback = (scene.paused, int(scene.elapsed)) if scene.camera_mode == "flyby" else None
-        key = (size, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
+        is_flyby = getattr(scene, "is_flyby", False)
+        playback = (scene.paused, int(scene.elapsed)) if is_flyby else None
+        key = (size, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
                playback,
                vp.tobytes() if scene.camera_mode == "overview" else None)
