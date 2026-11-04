@@ -75,7 +75,111 @@ class SpaceHUD:
     def marker_at(self, point):
         return next((index for index, rect in self.markers.items() if rect.collidepoint(point)), None)
 
+    def _paint_flyby(self, scene):
+        """Только подпись текущего корпуса и четыре команды у края кадра."""
+        w, h = self.size
+        s = self.s
+        pad = round(28 * s)
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        self.tabs.clear()
+        self.markers.clear()
+        self.options.clear()
+
+        def fit(text, font, width):
+            width = round(width)
+            if font.size(text)[0] <= width:
+                return text
+            while text and font.size(text + "…")[0] > width:
+                text = text[:-1]
+            return text.rstrip() + "…"
+
+        def label(text, x, y, font=None, color=_INK, width=None):
+            font = font or self.text
+            if width is not None:
+                text = fit(text, font, width)
+            surf.blit(font.render(text, True, color), (round(x), round(y)))
+
+        # Нижняя полоса не занимает композиционный центр, верхняя — едва видна.
+        for end, depth, opacity in ((False, 58, 110), (True, 155, 200)):
+            rows = round(depth * s)
+            for i in range(min(h, rows)):
+                y = h - i - 1 if end else i
+                pygame.draw.line(surf, (4, 9, 16, round(opacity * (1 - i / rows) ** 1.6)),
+                                 (0, y), (w, y))
+        label("E L I T E", pad, 18*s, self.mono, _GOLD)
+        if w > 580*s:
+            caption = "АВТОПРОЛЁТ     H  интерфейс  /  Esc  выход"
+            label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
+
+        ship = scene.ships[scene.selected]
+        authored = bool(ship.materials) and scene.texture_source == "author"
+        source = SOURCE_NAMES[scene.model_source]
+        textures = "Родные" if authored else "Обшивка"
+        auto = "вкл" if scene.auto_sources else "выкл"
+        wide = w > 760*s
+        buttons = (("cycle_source", "M", f"Модели · {source}" if wide else source),
+                   ("cycle_textures", "T", f"Текстуры · {textures}" if wide else textures),
+                   ("toggle_auto", "A", f"Авто · {auto}"),
+                   ("menu_credits", "I", "Авторы"))
+        rows, row = [], []
+        x = pad
+        gap, bh = round(6*s), round(28*s)
+        for action, key, text in buttons:
+            caption = f"{key}  {text}"
+            width = min(w - 2*pad, self.text.size(caption)[0] + round(20*s))
+            if row and x + width > w - pad:
+                rows.append(row)
+                row, x = [], pad
+            row.append((action, caption, x, width))
+            x += width + gap
+        rows.append(row)
+        controls_y = h - round(22*s) - len(rows)*bh - (len(rows)-1)*gap
+        for index, row in enumerate(rows):
+            y = controls_y + index*(bh+gap)
+            for action, caption, x, width in row:
+                rect = pygame.Rect(x, y, width, bh)
+                self.options[action] = rect
+                active = action == "menu_credits" and self.menu == "credits"
+                pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
+                label(caption, x + 10*s, y + 4*s, color=_GOLD if active else _MUTED,
+                      width=width-round(20*s))
+
+        title_y = controls_y - round(38*s)
+        label(ship.name, pad, title_y, self.brand, width=w-2*pad)
+        source_title = ship.source_title
+        if scene.model_source not in (ship.source_id, "mixed"):
+            source_title += f" · замена для {source}"
+        label(source_title, pad, title_y - 19*s, self.mono, _MUTED, width=w-2*pad)
+        if self.menu == "credits":
+            self._flyby_credits(surf, scene, ship, label, pad, title_y - 30*s)
+        return surf
+
+    def _flyby_credits(self, surf, scene, ship, label, pad, bottom):
+        s = self.s
+        width = min(self.size[0] - 2*pad, round(520*s))
+        texture = ship.source_title if ship.materials and scene.texture_source == "author" else "Процедурная обшивка"
+        lines = []
+        for text in (ship.name, f"Геометрия — {ship.source_title}", f"Автор — {ship.author}",
+                     f"Лицензия — {ship.license}", f"Текстуры — {texture}"):
+            current = ""
+            for word in text.split():
+                if current and self.text.size(current + " " + word)[0] > width - 24*s:
+                    lines.append(current)
+                    current = ""
+                current = (current + " " + word).strip()
+            lines.append(current)
+        height = round((len(lines)*22 + 39)*s)
+        top = max(round(55*s), round(bottom-height))
+        rect = pygame.Rect(pad, top, width, height)
+        pygame.draw.rect(surf, (12, 23, 31, 246), rect, border_radius=max(1, round(4*s)))
+        pygame.draw.line(surf, _GOLD, rect.topleft, rect.topright)
+        for index, line in enumerate(lines):
+            label(line, pad+12*s, top+(9+index*22)*s, color=_GOLD if index == 0 else _INK)
+        label("I / Esc  закрыть", pad+12*s, rect.bottom-23*s, self.mono, _MUTED)
+
     def _paint(self, scene, hover, vp):
+        if scene.camera_mode == "flyby":
+            return self._paint_flyby(scene)
         w, h = self.size
         s = self.s
         pad = round(34 * s)
@@ -258,7 +362,8 @@ class SpaceHUD:
             self._resize(size)
         # Во время полёта меняется только 3D. Карту перерисовываем при смене проекции.
         key = (size, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
-               self.menu, vp.tobytes() if scene.camera_mode == "overview" else None)
+               self.menu, getattr(scene, "auto_sources", None),
+               vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)
             self.texture.write(pygame.image.tobytes(surface, "RGBA", True))

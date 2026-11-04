@@ -605,18 +605,37 @@ class Viewer:
 
 
 def main(argv=None) -> None:
+    from math import isfinite
     from .space_assets import AssetCatalog, AssetError, SOURCE_NAMES, TEXTURE_NAMES
+
+    def nonnegative_seconds(value):
+        try:
+            seconds = float(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError("Ожидается число секунд") from exc
+        if not isfinite(seconds) or seconds < 0:
+            raise argparse.ArgumentTypeError("Число секунд должно быть конечным и неотрицательным")
+        return seconds
+
     parser = argparse.ArgumentParser(description="Учебный ручной рендерер ZX Spectrum Elite")
-    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces", "space"), default="ship")
+    parser.add_argument("--mode", choices=("ship", "line", "catalog", "clip", "faces", "space", "flyby"), default="ship")
     parser.add_argument("--model", type=int, metavar="ID",
                         help="Номер модели в каталоге, например 19 для Dodo")
     parser.add_argument("--screenshot", type=Path, help="Сохранить кадр UI и выйти (для проверки)")
-    parser.add_argument("--headless", action="store_true", help="Рендер без окна (для space — отдельный контекст OpenGL)")
-    parser.add_argument("--no-hud", action="store_true", help="Скрыть интерфейс космического атласа")
-    parser.add_argument("--model-source", choices=tuple(SOURCE_NAMES), help="Набор геометрии для режима space")
+    parser.add_argument("--headless", action="store_true", help="Рендер без окна (для space/flyby — отдельный контекст OpenGL)")
+    parser.add_argument("--no-hud", action="store_true", help="Скрыть интерфейс space/flyby")
+    parser.add_argument("--model-source", choices=tuple(SOURCE_NAMES), help="Набор геометрии для space/flyby")
     parser.add_argument("--texture-source", choices=tuple(TEXTURE_NAMES), help="Родные карты модели или процедурная обшивка атласа")
+    parser.add_argument("--source-interval", type=nonnegative_seconds, metavar="СЕК",
+                        help="flyby: интервал смены наборов (по умолчанию 8 с; 0 — вручную)")
+    parser.add_argument("--at", type=nonnegative_seconds, metavar="СЕК",
+                        help="flyby: время воспроизводимого кадра с --headless или --screenshot")
     parser.add_argument("--list-sources", action="store_true", help="Показать установленные наборы, авторов, лицензии и номера моделей")
     args = parser.parse_args(argv)
+    if args.mode != "flyby" and (args.source_interval is not None or args.at is not None):
+        parser.error("--source-interval и --at относятся только к автопролёту (--mode flyby)")
+    if args.at is not None and not (args.headless or args.screenshot):
+        parser.error("--at требует --headless или --screenshot")
     if args.list_sources:
         catalog = AssetCatalog()
         print("elite — классический каталог Elite, модели 0–19, процедурная обшивка")
@@ -631,25 +650,26 @@ def main(argv=None) -> None:
         if catalog.pack_ids:
             print("mixed — сборный флот из установленных наборов")
         return
-    if args.mode == "space":
+    if args.mode in ("space", "flyby"):
         try:
             from .space_viewer import run_space
         except ModuleNotFoundError as exc:
             if exc.name not in ("numpy", "moderngl", "glcontext"):
                 raise
-            parser.exit(1, "Для космического атласа установите зависимости: python -m pip install -r requirements-space.txt\n")
+            parser.exit(1, "Для space/flyby установите зависимости: python -m pip install -r requirements-space.txt\n")
         try:
             run_space(args.model, args.screenshot, args.headless, not args.no_hud,
-                      args.model_source or "elite", args.texture_source or "author")
+                      args.model_source or "elite", args.texture_source or "author", mode=args.mode,
+                      source_interval=8.0 if args.source_interval is None else args.source_interval, at=args.at)
         except AssetError as exc:
             parser.error(str(exc))
         return
     if args.model_source or args.texture_source:
-        parser.error("Выбор источника относится к космическому атласу (--mode space)")
+        parser.error("Выбор источника относится к режимам --mode space/flyby")
     if args.model is not None and args.model not in range(len(MODELS)):
         parser.error(f"Номер модели должен быть от 0 до {len(MODELS)-1}")
     if args.no_hud:
-        parser.error("--no-hud относится к космическому атласу (--mode space)")
+        parser.error("--no-hud относится к режимам --mode space/flyby")
     if args.mode == "faces" and args.model is not None and not MODELS[args.model].face_vertices:
         parser.error(f"У модели {MODELS[args.model].name} нет граней для сравнения")
     if args.headless:

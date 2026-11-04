@@ -2,6 +2,7 @@
 
 import os
 import sys
+from collections import OrderedDict
 from math import hypot, tau
 
 import moderngl
@@ -38,7 +39,7 @@ def _matrix(matrix):
 class MeshBuffer:
     """Один VBO, диапазон треугольников для каждого авторского материала."""
 
-    def __init__(self, ctx, program, vertices, imported):
+    def __init__(self, ctx, program, depth_program, vertices, imported):
         self.parts = []
         if imported:
             triangles = vertices.reshape(-1, 3, 9)
@@ -47,11 +48,14 @@ class MeshBuffer:
             vertices = triangles[order]
             ids, starts, counts = np.unique(slots[order], return_index=True, return_counts=True)
             self.parts = [(int(i), int(s * 3), int(n * 3)) for i, s, n in zip(ids, starts, counts)]
+        self.nbytes = vertices.nbytes
         self.buffer = ctx.buffer(vertices)
         self.vao = ctx.vertex_array(program, [(self.buffer, "3f 3f 2f 1f",
                                     "in_position", "in_normal", "in_uv", "in_material")])
+        self.depth_vao = ctx.vertex_array(depth_program, [(self.buffer, "3f 24x", "position")])
 
     def release(self):
+        self.depth_vao.release()
         self.vao.release()
         self.buffer.release()
 
@@ -61,8 +65,22 @@ class SpaceRenderer:
         self.ctx = ctx
         self.look = SpaceLook(ctx)
         self.hud = SpaceHUD(ctx)
-        self.buffers = {}
-        self.shadow = None
+        # Кеш разделяет только геометрию: ливрея и авторские материалы всегда
+        # выбираются из текущего ShipAsset, в том числе у торговца и пирата.
+        self.buffers = OrderedDict()
+        self._mesh_budget = 64 * 1024 * 1024
+        self._depth_program = ctx.program(vertex_shader=_DEPTH_VERTEX,
+                                          fragment_shader="#version 330\nvoid main() {}")
+        resolution = min(3072, ctx.info["GL_MAX_TEXTURE_SIZE"])
+        self.shadow = ctx.depth_texture((resolution, resolution))
+        self.shadow.filter = (moderngl.LINEAR, moderngl.LINEAR)
+        self.shadow.repeat_x = self.shadow.repeat_y = False
+        self.shadow.compare_func = "<="
+        self._shadow_target = ctx.framebuffer(depth_attachment=self.shadow)
+        sun = np.array(SUN_DIRECTION)
+        right = np.cross((0, 1, 0), sun)
+        right /= np.linalg.norm(right)
+        self._light_axes = np.array((right, np.cross(sun, right), -sun))
         self._load_fleet(scene)
         # Разметка обзора лежит в мировой плоскости расположения экспонатов.
         angles = (np.arange(220)[:, None] + np.array((0, .55))) * tau / 220
@@ -71,78 +89,137 @@ class SpaceRenderer:
         self.orbit_program = ctx.program(vertex_shader=_ORBIT_VERTEX, fragment_shader=_ORBIT_FRAGMENT)
         self.orbit = ctx.simple_vertex_array(self.orbit_program, self.orbit_buf, "position")
 
-    def _load_fleet(self, scene):
-        buffers = {}
-        meshes = []
-        try:
-            for ship, obj in zip(scene.ships, scene.objects):
-                levels = []
-                for i, key in enumerate(ship.meshes or (ship.model_id,)):
-                    if key not in buffers:
-                        buffers[key] = MeshBuffer(self.ctx, self.look.hull, ship.vertices(i), bool(ship.meshes))
-                    levels.append(buffers[key])
-                meshes.append((levels, _matrix(obj.matrix)))
-        except Exception:
-            for buf in buffers.values():
+    def _mesh_buffer(self, ship, lod):
+        key = ("mesh", ship.meshes[lod]) if ship.meshes else ("elite", ship.model_id)
+        if key not in self.buffers:
+            self.buffers[key] = MeshBuffer(self.ctx, self.look.hull, self._depth_program,
+                                           ship.vertices(lod), bool(ship.meshes))
+        self.buffers.move_to_end(key)
+        return key, self.buffers[key]
+
+    def _trim_meshes(self, protected):
+        total = sum(buf.nbytes for buf in self.buffers.values())
+        for key in tuple(self.buffers):
+            if total <= self._mesh_budget:
+                break
+            if key not in protected:
+                buf = self.buffers.pop(key)
+                total -= buf.nbytes
                 buf.release()
+
+    def _load_fleet(self, scene):
+        meshes, used = [], set()
+        previous = set(self.buffers)
+        try:
+            for ship in scene.ships:
+                levels = []
+                for lod in range(len(ship.meshes) or 1):
+                    key, buf = self._mesh_buffer(ship, lod)
+                    used.add(key)
+                    levels.append(buf)
+                meshes.append(levels)
+        except Exception:
+            for key in set(self.buffers) - previous:
+                self.buffers.pop(key).release()
             raise
-        for buf in self.buffers.values():
-            buf.release()
-        self.look.release_imported_textures()
-        self.buffers, self.meshes = buffers, meshes
-        if self.shadow:
-            self.shadow.release()
-        self.shadow = self._bake_shadow(scene)
+        # Активный флот не вытесняется; старые наборы живут только в пределах
+        # бюджета. Смена M не пересоздаёт одинаковые VBO/VAO и карты теней.
+        self._mesh_keys = used
+        self._trim_meshes(used)
+        self.meshes = meshes
+        self._shadow_objects = self._shadow_signature = None
         self.source = scene.model_source
 
-    def _bake_shadow(self, scene):
-        # И корабли, и звезда неподвижны. Одной карты глубины хватает на весь облёт.
-        ctx = self.ctx
-        sun = np.array(SUN_DIRECTION)
-        right = np.cross((0, 1, 0), sun)
-        right /= np.linalg.norm(right)
-        axes = np.array((right, np.cross(sun, right), -sun))
+    def warm_sources(self, scene):
+        """Подготовить локальные наборы до запуска часов оконного облёта.
+
+        Сцена и активный флот не меняются. При ручной смене наборов сохраняем
+        ленивую загрузку: чужой необязательный pack не нужен для запуска.
+        """
+        if not getattr(scene, "auto_sources", False):
+            return
+        # Только собственные ассеты пакетов: mixed и подстановки классических
+        # кораблей не добавляют ресурсов и не требуют повторного обхода.
+        fleets = [scene.catalog.classic]
+        fleets.extend(scene.catalog.pack(source).values() for source in scene.catalog.pack_ids)
+        for ships in fleets:
+            for ship in ships:
+                for lod in range(len(ship.meshes) or 1):
+                    self._mesh_buffer(ship, lod)
+                    self._trim_meshes(self._mesh_keys)
+                if scene.texture_source == "author":
+                    for material in ship.materials:
+                        self.look.use_material(material)
+        self.ctx.finish()
+
+    @staticmethod
+    def _lod(levels, diameter_px):
+        return min(len(levels) - 1, 2 if diameter_px < 80 else 1 if diameter_px < 220 else 0)
+
+    def _update_shadow(self, scene, visible):
+        dynamic = scene.camera_mode == "flyby"
+        # Экспонаты обычного атласа неизменяемы; движение камеры не требует
+        # ни прохода глубины, ни пересчёта световой матрицы.
+        if not dynamic and self._shadow_objects is scene.objects:
+            return
+        axes = self._light_axes
         centers = np.array([obj.position for obj in scene.objects]) @ axes.T
         radii = np.array([obj.radius for obj in scene.objects])[:, None] + .1
         lo, hi = (centers - radii).min(axis=0), (centers + radii).max(axis=0)
+        extent = np.maximum(hi - lo, .001)
         light_vp = np.eye(4)
-        light_vp[:3, :3] = axes * (2 / (hi - lo))[:, None]
-        light_vp[:3, 3] = -(hi + lo) / (hi - lo)
-
-        resolution = min(3072, ctx.info["GL_MAX_TEXTURE_SIZE"])
-        depth = ctx.depth_texture((resolution, resolution))
-        depth.filter = (moderngl.LINEAR, moderngl.LINEAR)
-        depth.repeat_x = depth.repeat_y = False
-        depth.compare_func = "<="
-        target = ctx.framebuffer(depth_attachment=depth)
-        prog = ctx.program(vertex_shader=_DEPTH_VERTEX, fragment_shader="#version 330\nvoid main() {}")
-        target.use()
-        target.clear(depth=1.0)
-        ctx.enable_only(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
-        # Корпуса и накладные детали замкнуты. Записываем дальнюю оболочку
-        # со стороны звезды, чтобы фильтр тени не затенял сам освещённый фасет.
-        ctx.cull_face = "front"
-        for obj, (levels, _) in zip(scene.objects, self.meshes):
-            vao = ctx.vertex_array(prog, [(levels[0].buffer, "3f 24x", "position")])
-            prog["light_mvp"].write(_matrix(light_vp @ obj.matrix))
-            vao.render()
-            vao.release()
-        ctx.cull_face = "back"
-        prog.release()
-        target.release()
-        self.look.hull["u_shadow_vp"].write(_matrix(light_vp))
-        self.look.hull["u_shadow"].value = 2
-        self.look.hull["u_shadow_enabled"].value = True
-        return depth
+        light_vp[:3, :3] = axes * (2 / extent)[:, None]
+        light_vp[:3, 3] = -(hi + lo) / extent
+        lods = [0] * len(self.meshes)
+        if dynamic:
+            # Тень мелкого/дальнего объекта не нуждается в деталях, меньших
+            # текселя атласа. Видимый корпус никогда не получает более грубую
+            # самотень, чем его текущая геометрия. Вне кадра остаются кастеры:
+            # они всё ещё способны затенять соседний видимый корабль.
+            scale = self.shadow.size[0] / min(extent[:2])
+            lods = [self._lod(levels, 2 * obj.radius * scale)
+                    for obj, levels in zip(scene.objects, self.meshes)]
+            for index, lod in visible:
+                lods[index] = min(lods[index], lod)
+        transforms = tuple(_matrix(obj.matrix) for obj in scene.objects)
+        signature = (_matrix(light_vp), transforms, tuple(lods))
+        if signature != self._shadow_signature:
+            ctx = self.ctx
+            self._shadow_target.use()
+            ctx.viewport = (0, 0, *self.shadow.size)
+            self._shadow_target.clear(depth=1.0)
+            ctx.enable_only(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
+            ctx.front_face = "ccw"
+            # Дальняя оболочка не затеняет собственный освещённый фасет.
+            ctx.cull_face = "front"
+            for obj, levels, lod in zip(scene.objects, self.meshes, lods):
+                self._depth_program["light_mvp"].write(_matrix(light_vp @ obj.matrix))
+                levels[lod].depth_vao.render()
+            ctx.cull_face = "back"
+            self.look.hull["u_shadow_vp"].write(_matrix(light_vp))
+            self.look.hull["u_shadow_enabled"].value = True
+            self._shadow_signature = signature
+        self._shadow_objects = scene.objects
 
     def draw(self, scene, target, size, show_hud, hover=None):
         ctx = self.ctx
         if self.source != scene.model_source:
             self._load_fleet(scene)
+        vp = scene.view_projection(size[0] / size[1])
+        planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
+        planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
+        focal = size[1] * np.linalg.norm(vp[1, :3])
+        visible = []
+        for index, (obj, levels) in enumerate(zip(scene.objects, self.meshes)):
+            if np.any(planes[:, :3] @ obj.position + planes[:, 3] < -obj.radius):
+                continue
+            depth = vp[3, :3] @ obj.position + vp[3, 3]
+            diameter_px = focal * obj.radius / max(.001, depth)
+            visible.append((index, self._lod(levels, diameter_px)))
+        self._update_shadow(scene, visible)
         target.use()
         ctx.viewport = (0, 0, *size)
         target.clear(0.01, 0.02, 0.03, 1.0, depth=1.0, viewport=ctx.viewport)
-        vp = scene.view_projection(size[0] / size[1])
         eye = scene.eye
         self.look.draw_sky(np.linalg.inv(vp), eye)
         if show_hud and scene.camera_mode == "overview":
@@ -157,18 +234,11 @@ class SpaceRenderer:
         self.shadow.use(location=2)
         hull["u_view_proj"].write(_matrix(vp))
         hull["u_eye"].value = tuple(eye)
-        planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
-        planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
-        focal = size[1] * np.linalg.norm(vp[1, :3])
-        for ship, obj, (levels, transform) in zip(scene.ships, scene.objects, self.meshes):
-            if np.any(planes[:, :3] @ obj.position + planes[:, 3] < -obj.radius):
-                continue
-            depth = vp[3, :3] @ obj.position + vp[3, 3]
-            diameter_px = focal * obj.radius / max(.001, depth)
-            lod = min(len(levels) - 1, 2 if diameter_px < 80 else 1 if diameter_px < 220 else 0)
-            mesh = levels[lod]
+        for index, lod in visible:
+            ship, obj = scene.ships[index], scene.objects[index]
+            mesh = self.meshes[index][lod]
             authored = bool(ship.materials) and scene.texture_source == "author"
-            hull["u_model"].write(transform)
+            hull["u_model"].write(_matrix(obj.matrix))
             self.look.configure_model(obj.model_id, imported=bool(ship.meshes), authored=authored,
                                       cross_bitangent=ship.cross_bitangent)
             if mesh.parts:
@@ -188,9 +258,11 @@ class SpaceRenderer:
         self.orbit.release()
         self.orbit_buf.release()
         self.orbit_program.release()
+        self._shadow_target.release()
         self.shadow.release()
         for buf in self.buffers.values():
             buf.release()
+        self._depth_program.release()
         self.hud.release()
         self.look.release()
 
@@ -331,6 +403,70 @@ class SpaceControls:
             self.dragging = False
         return True
 
+    def update(self, seconds):
+        keys = pygame.key.get_pressed()
+        self.scene.update(seconds, (keys[pygame.K_d] - keys[pygame.K_a], keys[pygame.K_e] - keys[pygame.K_q],
+                                    keys[pygame.K_w] - keys[pygame.K_s],
+                                    4 if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1))
+
+
+class FlybyControls(SpaceControls):
+    """Автопролёт принимает команды показа, камера всегда следует сценарию."""
+
+    def _mode(self, action):
+        if action == "menu_credits":
+            self.hud.menu = None if self.hud.menu == "credits" else "credits"
+            return
+        self.hud.menu = None
+        if action == "cycle_source":
+            self.scene.cycle_source()
+        elif action == "cycle_textures":
+            self.scene.cycle_textures()
+        elif action == "toggle_auto":
+            self.scene.toggle_auto_sources()
+
+    def event(self, e, logical_size, drawable_size):
+        if e.type == pygame.QUIT:
+            return False
+        if e.type == pygame.WINDOWFOCUSLOST:
+            self.press = None
+            self.dragging = False
+        elif e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_ESCAPE:
+                if self.hud.menu:
+                    self.hud.menu = None
+                else:
+                    return False
+            elif e.key == pygame.K_h:
+                self.show_hud = not self.show_hud
+                self.hud.menu = None
+            elif e.key == pygame.K_i:
+                self.show_hud = True
+                self._mode("menu_credits")
+            else:
+                action = {pygame.K_m: "cycle_source", pygame.K_t: "cycle_textures",
+                          pygame.K_a: "toggle_auto"}.get(e.key)
+                if action:
+                    self._mode(action)
+        elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+            pixel = self._pixel(e.pos, logical_size, drawable_size)
+            self.press = (e.button, e.pos, self.hud.tab_at(pixel) if self.show_hud else None)
+            self.dragging = False
+        elif e.type == pygame.MOUSEMOTION and self.press:
+            self.dragging |= hypot(e.pos[0] - self.press[1][0], e.pos[1] - self.press[1][1]) >= 4
+        elif e.type == pygame.MOUSEBUTTONUP and e.button == 1 and self.press:
+            start_action = self.press[2]
+            self.press = None
+            pixel = self._pixel(e.pos, logical_size, drawable_size)
+            action = self.hud.tab_at(pixel) if self.show_hud else None
+            if not self.dragging and action and action == start_action:
+                self._mode(action)
+            self.dragging = False
+        return True
+
+    def update(self, seconds):
+        self.scene.update(seconds)
+
 
 def _save(frame, size, path):
     rgb = frame.read(viewport=(0, 0, *size), components=3, alignment=1)
@@ -339,7 +475,8 @@ def _save(frame, size, path):
     pygame.image.save(surface, str(path))
 
 
-def run_space(model_id, screenshot, headless, show_hud, model_source="elite", texture_source="author"):
+def run_space(model_id, screenshot, headless, show_hud, model_source="elite", texture_source="author", *,
+              mode="space", source_interval=8.0, at=None):
     catalog = AssetCatalog()
     ships = catalog.fleet(model_source)
     if model_id is not None and model_id not in range(len(ships)):
@@ -357,12 +494,21 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
         except Exception as exc:
             raise SystemExit(f"Космическому атласу нужен OpenGL 3.3 Core. Не удалось открыть контекст: {exc}") from exc
         print(f"OpenGL {ctx.info['GL_VERSION']} · {ctx.info['GL_RENDERER']}", flush=True)
-        scene = SpaceScene(model_source=model_source, texture_source=texture_source, catalog=catalog)
-        if model_id is not None:
-            scene.select(model_id)
+        if mode == "flyby":
+            from .space_flyby import FlybyScene
+            scene = FlybyScene(model_id, model_source=model_source, texture_source=texture_source,
+                               catalog=catalog, source_interval=source_interval)
+            if at is not None:
+                scene.seek(at)
+        else:
+            scene = SpaceScene(model_source=model_source, texture_source=texture_source, catalog=catalog)
+            if model_id is not None:
+                scene.select(model_id)
         renderer = SpaceRenderer(ctx, scene)
+        if mode == "flyby" and not headless and not screenshot:
+            renderer.warm_sources(scene)
         if not headless:
-            pygame.display.set_caption("Elite · Орбитальный каталог")
+            pygame.display.set_caption("Elite · Автопролёт" if mode == "flyby" else "Elite · Орбитальный каталог")
         if headless or screenshot:
             # Для чтения на Mac сводим выборки MSAA в отдельный буфер с одним
             # цветом на пиксель. Скриншот окна использует тот же контекст и кадр.
@@ -381,7 +527,7 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
                 ctx.finish()
             return
 
-        controls = SpaceControls(scene, renderer.hud, show_hud)
+        controls = (FlybyControls if mode == "flyby" else SpaceControls)(scene, renderer.hud, show_hud)
         initial_size = pygame.display.get_window_size()
         density = tuple(px / pt for px, pt in zip(ctx.screen.size, initial_size))
         clock = pygame.time.Clock()
@@ -392,9 +538,7 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             for e in pygame.event.get():
                 if not controls.event(e, logical_size, size):
                     return
-            keys = pygame.key.get_pressed()
-            scene.update(seconds, (keys[pygame.K_d] - keys[pygame.K_a], keys[pygame.K_e] - keys[pygame.K_q],
-                                   keys[pygame.K_w] - keys[pygame.K_s], 4 if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1))
+            controls.update(seconds)
             hover = None
             if (controls.show_hud and scene.camera_mode == "overview" and controls.press is None
                     and pygame.mouse.get_focused()):
