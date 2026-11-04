@@ -1,10 +1,19 @@
 #version 330
 
 uniform sampler2D u_surface;
+uniform sampler2D u_surface_slope;
 uniform sampler2D u_stencils;
 uniform bool u_author_maps;
 uniform bool u_imported;
 uniform bool u_cross_bitangent;
+uniform bool u_cobra_finishes;
+uniform bool u_classic_finishes;
+uniform vec4 u_finish_layout;
+uniform vec4 u_finish_response;
+uniform vec4 u_damage_profile;
+uniform vec3 u_glass_tint;
+uniform sampler2D u_finish_slope;
+uniform mat4 u_model;
 uniform sampler2D u_diffuse_map;
 uniform sampler2D u_normal_map;
 uniform sampler2D u_specular_map;
@@ -44,6 +53,8 @@ flat in int v_material;
 out vec4 frag_color;
 
 const float PI = 3.14159265359;
+// Выбранный для нашей Cobra тёмный графит, в линейном пространстве.
+const vec3 COBRA_GLASS_TINT = vec3(0.115, 0.135, 0.145);
 
 float hash31(vec3 p) {
     p = fract(p * 0.1031);
@@ -66,15 +77,20 @@ float band(float p, float center, float width) {
     return 1.0 - smoothstep(width - edge, width + edge, abs(p - center));
 }
 
-// Производные восстанавливают касательную плоскость без изменения крупных фасетов.
-vec3 relief_normal(vec3 normal, float height, float strength) {
-    vec3 dx = dFdx(v_position);
-    vec3 dy = dFdy(v_position);
-    vec3 r1 = cross(dy, normal);
-    vec3 r2 = cross(normal, dx);
+// Наклон берётся из непрерывно фильтруемой UV-карты, а не из разности
+// отфильтрованных высот соседних экранных пикселей. Цепное правило переносит
+// dH/dUV в мировую касательную плоскость при любом масштабе/ракурсе корпуса.
+vec3 relief_from_gradient(vec3 normal, vec2 height_xy, float strength) {
+    vec3 dx = dFdx(v_position), dy = dFdy(v_position);
+    vec3 r1 = cross(dy, normal), r2 = cross(normal, dx);
     float det = dot(dx, r1);
-    vec3 gradient = sign(det) * (dFdx(height) * r1 + dFdy(height) * r2);
+    vec3 gradient = sign(det) * (height_xy.x * r1 + height_xy.y * r2);
     return normalize(abs(det) * normal - strength * gradient);
+}
+
+// Непрерывная процедурная высота камня использует тот же мировой базис.
+vec3 relief_normal(vec3 normal, float height, float strength) {
+    return relief_from_gradient(normal, vec2(dFdx(height), dFdy(height)), strength);
 }
 
 vec3 fresnel_schlick(float cosine, vec3 f0) {
@@ -96,10 +112,161 @@ struct Surface {
     vec3 emission;
 };
 
+// Силовые секции идут вдоль двух верхних плеч исходной Cobra. Границы
+// принадлежат корпусу, а fwidth сглаживает их и на общем плане, и вблизи.
+float cobra_shoulder_metal() {
+    float diagonal = abs(v_local.x) + 1.34 * v_local.z;
+    float plate = band(diagonal, -0.103, 0.066);
+    float aa = max(fwidth(v_local.z), 0.0004);
+    plate *= smoothstep(-0.414 - aa, -0.414 + aa, v_local.z);
+    plate *= 1.0 - smoothstep(-0.095 - aa, -0.095 + aa, v_local.z);
+    float ax = abs(v_local.x);
+    float ax_aa = max(fwidth(ax), 0.0004);
+    plate *= smoothstep(0.105 - ax_aa, 0.105 + ax_aa, ax);
+    return plate * smoothstep(0.80, 0.90, v_local_normal.y);
+}
+
+// Четыре пространственные компоновки силовых секций; масштаб, доля и
+// смещение принадлежат профилю корабля, без переключения shader по ID.
+float classic_metal_span(float expansion) {
+    if (u_cobra_finishes) return cobra_shoulder_metal();
+    vec3 p = v_local;
+    p.z = p.z * u_finish_layout.z - u_finish_layout.w;
+    float width = mix(0.020, 0.165, clamp(u_finish_layout.y, 0.0, 1.0)) + expansion;
+    float mask;
+    if (u_finish_layout.x < 1.5) {
+        // Поперечные обоймы у двух концов корпуса, с разной шириной.
+        mask = max(band(p.z, -0.38, width), band(p.z, 0.33, width * 0.72));
+    } else if (u_finish_layout.x < 2.5) {
+        // Парные носовые/плечевые листы, вдоль силовой диагонали.
+        float diagonal = abs(p.x) - 0.30 * p.z;
+        mask = band(diagonal, 0.32, width);
+        float aa = max(fwidth(p.z), 0.0005);
+        mask *= smoothstep(-0.34 - aa, -0.34 + aa, p.z);
+        mask *= 1.0 - smoothstep(0.66 - aa, 0.66 + aa, p.z);
+        mask *= 0.30 + 0.70 * smoothstep(0.25, 0.70, abs(v_local_normal.y));
+    } else if (u_finish_layout.x < 3.5) {
+        // Продольные грузовые усиления и широкий защитный кормовой срез.
+        float rail = abs(p.x) + 0.42 * abs(p.y);
+        mask = band(rail, 0.34, width);
+        mask *= 1.0 - smoothstep(0.55, 0.88, abs(v_local_normal.z));
+        mask = max(mask, band(p.z, -0.43, width * 0.72));
+    } else {
+        // Радиальный пояс и диагональные технические сектора станций/alien.
+        float radius = length(p.xz);
+        float ring = band(radius, 0.52, width);
+        float spokes = band(abs(p.x) - abs(p.z), 0.0, width * 0.62);
+        spokes *= smoothstep(0.18, 0.31, radius);
+        mask = max(ring, spokes * smoothstep(0.25, 0.55, abs(v_local_normal.y)));
+    }
+    return clamp(mask, 0.0, 1.0);
+}
+
+float classic_metal_mask() {
+    return classic_metal_span(0.0);
+}
+
+// Обтирка с обрывами лежит в краске рядом с грузовыми усилениями,
+// а боевые сколы открывают отдельные нерегулярные участки сплава.
+// Чистые профили сюда не попадают. Крупные спокойные поля остаются целыми.
+float classic_paint_loss() {
+    float weather = smoothstep(0.45, 0.85, u_wear);
+    vec3 p = v_local * vec3(32.0, 19.0, 39.0) + vec3(u_seed * 3.7);
+    float breakup = value_noise(p);
+    float coarse = value_noise(p * 0.31 + vec3(7.3, 2.8, 4.1));
+    float footprint = max(length(dFdx(p)), length(dFdy(p)));
+    float resolved = 1.0 - smoothstep(0.25, 0.65, footprint);
+    float aa = max(fwidth(breakup), 0.025);
+    float broken = smoothstep(0.43 - aa, 0.66 + aa, breakup) * resolved;
+    // Дальний mip имеет средний физический износ, а не мерцающие острова.
+    broken += (1.0 - resolved) * 0.30;
+    float loading_edge = max(classic_metal_span(0.055) - classic_metal_mask(), 0.0);
+    float rub = loading_edge * broken * u_damage_profile.y;
+    float wounds = smoothstep(0.62 - aa, 0.80 + aa, breakup) *
+                   smoothstep(0.42, 0.64, coarse) * resolved;
+    wounds *= max(u_damage_profile.x - 0.48, 0.0);
+    return clamp(weather * (rub * 1.45 + wounds * 1.85), 0.0, 1.0);
+}
+
+// RG общей карты содержит широкую фаску конструктивных швов, BA —
+// вмятины с валиками. Это dH/dUV до mip-фильтрации, а не разности
+// соседних экранных отсчётов. Глубина задаётся в единицах самого корпуса.
+vec3 classic_relief(vec2 uv, vec2 old_height_xy, float damage, float equipment,
+                    float metal) {
+    vec4 slope = texture(u_finish_slope, uv);
+    vec2 dx = dFdx(uv), dy = dFdy(uv);
+    vec2 seams = vec2(dot(slope.rg, dx), dot(slope.rg, dy));
+    vec2 dents = vec2(dot(slope.ba, dx), dot(slope.ba, dy));
+    float scale = max(u_texture_scale, 0.5);
+    float model_scale = length(u_model[0].xyz);
+    float structural = 0.0140 * u_finish_response.z / scale;
+    float dent_depth = 0.0260 * u_finish_response.w * u_damage_profile.z / scale;
+    dent_depth *= 0.40 + 0.60 * u_wear;
+    // Тонкий родной G сохраняет прежнюю мировую глубину: её усиление
+    // давало скачки блика на 1–2 texel. Весь крупный рельеф создают
+    // отдельные широкие фаски и заломы с глубиной в единицах корпуса.
+    vec2 height_xy = old_height_xy * (0.0028 / (scale * model_scale))
+                  + seams * structural + dents * dent_depth;
+
+    // Редкие направленные риски: фаза привязана к UV, амплитуда уходит
+    // до Найквиста. Производные берутся в согласованном потоке исполнения.
+    float islands = value_noise(vec3(uv * vec2(19.0, 11.0), u_seed + 4.7));
+    float q = uv.y * 427.0 + islands * 1.7;
+    float resolved = 1.0 - smoothstep(0.20, 0.45, fwidth(q));
+    float phase = q * (2.0 * PI);
+    float scratch = cos(phase) * resolved;
+    float patch = smoothstep(0.48, 0.73, islands) *
+                  smoothstep(0.18, 0.55, damage) * smoothstep(0.64, 0.96, equipment);
+    float fine_depth = 0.000026 * u_damage_profile.w * u_finish_response.w *
+                       (0.35 + u_wear) * patch / scale;
+    height_xy += fine_depth * (2.0 * PI) * scratch * vec2(dFdx(q), dFdy(q));
+    // Шлифованная силовая секция имеет рельеф, но не шероховатость краски.
+    height_xy *= mix(1.0, 0.55, metal);
+    return relief_from_gradient(normalize(v_normal), height_xy, model_scale);
+}
+
+float frosted_box(vec2 p, vec2 half_size, float scatter) {
+    float distance = max(abs(p.x) - half_size.x, abs(p.y) - half_size.y);
+    float blur = scatter + fwidth(distance);
+    return 1.0 - smoothstep(-blur, blur, distance);
+}
+
+// Луч преломляется в толщу фонаря и заканчивается на глухой кабине,
+// лежащей над исходной обшивкой. Фон и дальняя сторона корпуса сюда
+// никогда не подмешиваются. Мягкие силуэты кресел и пульта размыты стеклом.
+vec3 cobra_cabin(vec3 view_direction, float nv) {
+    vec3 local_view = normalize(transpose(mat3(u_model)) * view_direction);
+    vec3 local_normal = normalize(v_local_normal);
+    vec3 ray = refract(-local_view, local_normal, 1.0 / 1.47);
+    vec3 floor_normal = normalize(vec3(0.0, 1.0, 0.5));
+    float depth = max(dot(v_local, floor_normal) - 0.157, 0.0);
+    float travel = depth / max(-dot(ray, floor_normal), 0.22);
+    vec2 cabin = (v_local + ray * min(travel, 0.12)).xz;
+    vec3 interior = vec3(0.015, 0.022, 0.025);
+    float seats = frosted_box(vec2(abs(cabin.x) - 0.037, cabin.y - 0.181),
+                              vec2(0.022, 0.027), 0.007);
+    float headrests = frosted_box(vec2(abs(cabin.x) - 0.037, cabin.y - 0.162),
+                                  vec2(0.016, 0.010), 0.006);
+    interior = mix(interior, vec3(0.058, 0.068, 0.067), seats * 0.82);
+    interior = mix(interior, vec3(0.085, 0.091, 0.083), headrests * 0.65);
+    float console = frosted_box(cabin - vec2(0.0, 0.203), vec2(0.009, 0.031), 0.005);
+    interior = mix(interior, vec3(0.010, 0.016, 0.019), console * 0.85);
+    float dashboard = frosted_box(cabin - vec2(0.0, 0.237), vec2(0.112, 0.009), 0.006);
+    interior = mix(interior, vec3(0.007, 0.012, 0.015), dashboard * 0.92);
+    float instruments = frosted_box(vec2(abs(cabin.x) - 0.039, cabin.y - 0.231),
+                                    vec2(0.022, 0.002), 0.004);
+    interior += vec3(0.035, 0.090, 0.082) * instruments;
+    // Более длинный путь на скользящем ракурсе сильнее поглощает свет.
+    vec3 transmission = exp(-mix(vec3(0.20), vec3(0.85), 1.0 - COBRA_GLASS_TINT) /
+                            max(nv, 0.28));
+    return interior * transmission;
+}
+
 Surface procedural_surface() {
     vec3 n = normalize(v_normal);
     vec2 uv = v_uv * u_texture_scale + u_uv_offset;
-    vec4 surface = texture(u_surface, uv);
+    vec4 surface;
+    vec2 height_xy;
     if (u_imported) {
         // Карты атласа лежат в координатах корпуса, независимо от авторских UV-островов.
         vec3 w = pow(abs(normalize(v_local_normal)), vec3(5.0));
@@ -108,6 +275,19 @@ Surface procedural_surface() {
         surface = w.x * texture(u_surface, p.zy + u_uv_offset)
                 + w.y * texture(u_surface, p.xz + u_uv_offset)
                 + w.z * texture(u_surface, p.xy + u_uv_offset);
+        vec2 sx = texture(u_surface_slope, p.zy + u_uv_offset).rg;
+        vec2 sy = texture(u_surface_slope, p.xz + u_uv_offset).rg;
+        vec2 sz = texture(u_surface_slope, p.xy + u_uv_offset).rg;
+        // Каждая проекция возвращает dH по своим двум осям. Сначала общий
+        // локальный градиент, затем его проекция на экран и мировой базис.
+        vec3 local_slope = w.x * vec3(0.0, sx.y, sx.x)
+                         + w.y * vec3(sy.x, 0.0, sy.y)
+                         + w.z * vec3(sz.x, sz.y, 0.0);
+        height_xy = vec2(dot(local_slope, dFdx(p)), dot(local_slope, dFdy(p)));
+    } else {
+        surface = texture(u_surface, uv);
+        vec2 slope = texture(u_surface_slope, uv).rg;
+        height_xy = vec2(dot(slope, dFdx(uv)), dot(slope, dFdy(uv)));
     }
     float panel_tone = surface.r;
     float panel_height = surface.g;
@@ -115,6 +295,15 @@ Surface procedural_surface() {
     float equipment = surface.a;
     float wear = smoothstep(0.98 - u_wear * 0.71, 1.0 - u_wear * 0.16, damage);
     float recess = smoothstep(0.18, 0.62, panel_height);
+    if (u_classic_finishes && (v_material == 0 || v_material == 1 || v_material == 4)) {
+        float edge = 1.0 - smoothstep(0.42, 0.63, panel_height);
+        float chips = smoothstep(0.48 - u_wear * 0.19, 0.78 - u_wear * 0.19, damage);
+        float abrasion = smoothstep(0.24, 0.58, damage) * (0.35 + 0.65 * (1.0 - equipment));
+        wear = clamp(wear * (0.50 + 0.60 * u_damage_profile.x) +
+                     u_wear * (chips * u_damage_profile.x * 0.55 +
+                               edge * chips * 0.35 + abrasion * u_damage_profile.y * 0.58), 0.0, 1.0);
+        wear = max(wear, classic_paint_loss());
+    }
 
     vec3 paint = mix(u_hull_color, u_secondary_color,
                      smoothstep(0.53, 0.73, panel_tone) * 0.61);
@@ -149,15 +338,24 @@ Surface procedural_surface() {
     }
     float paint_mask = (primary * 0.76 + fine * 0.54) * (1.0 - wear * 0.88) * recess;
     albedo = mix(albedo, u_accent_color * mix(0.77, 1.12, panel_tone), paint_mask);
-    if (u_patch.z > 0.0 && v_material == 0 && v_normal.y > 0.25) {
+    float registration_ink = 0.0;
+    vec3 registration_pigment = vec3(0.0);
+    bool registration_upper = u_classic_finishes ? v_local_normal.y > 0.25 : v_normal.y > 0.25;
+    if (u_patch.z > 0.0 && v_material == 0 && registration_upper) {
         vec2 stamp = 0.5 + (u_patch.yx - v_local.zx) / (u_patch.z * vec2(1.0, 0.50));
         vec2 atlas_uv = (u_stencil_tile + clamp(stamp, 0.01, 0.99)) / vec2(4.0, 8.0);
-        float ink = texture(u_stencils, atlas_uv).r * recess * (1.0 - wear * 0.85);
+        float ink = texture(u_stencils, atlas_uv).r * recess;
         float light_paint = smoothstep(0.16, 0.38, dot(u_hull_color, vec3(.22, .70, .08)));
         vec3 pigment = mix(vec3(.64, .57, .42), vec3(.030, .052, .065), light_paint);
-        albedo = mix(albedo, pigment, ink * 0.87);
+        if (u_classic_finishes) {
+            registration_ink = ink * (1.0 - wear * 0.35) * 0.87;
+            registration_pigment = pigment;
+        } else {
+            // У внешних процедурных корпусов прежний порядок и износ.
+            albedo = mix(albedo, pigment, ink * (1.0 - wear * 0.85) * 0.87);
+        }
     }
-    n = relief_normal(n, panel_height, 0.0028 / max(u_texture_scale, 0.5));
+    n = relief_from_gradient(n, height_xy, 0.0028 / max(u_texture_scale, 0.5));
 
     if (v_material == 1) {
         albedo = mix(vec3(0.035, 0.044, 0.052), u_metal_color * 0.35, wear);
@@ -207,6 +405,50 @@ Surface procedural_surface() {
         metallic = 0.1;
     }
 
+    if (u_classic_finishes) {
+        if (v_material == 0) {
+            float metal = classic_metal_mask();
+            // Пигмент — шероховатый диэлектрик. Царапины прежней карты
+            // сохраняют и расположение, и металлическое основание.
+            roughness = clamp(u_roughness + (damage - 0.5) * 0.14 +
+                              (panel_tone - 0.5) * 0.12 + wear * 0.06, 0.45, 0.94);
+            roughness = mix(roughness, 0.52 + damage * 0.16, wear * 0.84);
+            metallic = mix(0.025, 0.80, wear);
+            vec3 alloy = u_metal_color * mix(0.88, 1.32, panel_tone);
+            alloy *= mix(0.68, 1.0, recess) * mix(0.55, 1.0, equipment);
+            albedo = mix(albedo, alloy, metal);
+            roughness = mix(roughness, clamp(u_finish_response.x + damage * 0.10 + wear * 0.05, 0.19, 0.70), metal);
+            metallic = mix(metallic, 0.97, metal);
+            n = classic_relief(uv, height_xy, damage, equipment, metal);
+        } else if (v_material == 1 || v_material == 4) {
+            albedo = u_metal_color * mix(0.52, 1.06, panel_tone);
+            albedo *= mix(0.64, 1.0, equipment);
+            roughness = clamp(u_finish_response.x + damage * 0.12 + wear * 0.05, 0.19, 0.70);
+            metallic = 0.96;
+            n = classic_relief(uv, height_xy, damage, equipment, 1.0);
+        } else if (v_material == 2) {
+            // Матовый фонарь: широкий диэлектрический блик и рассеяние,
+            // без металлического F0 и без прозрачности всего корабля.
+            n = normalize(v_normal);
+            albedo = (u_cobra_finishes ? COBRA_GLASS_TINT : u_glass_tint) * 0.018;
+            roughness = u_finish_response.y;
+            metallic = 0.0;
+            occlusion = 1.0;
+        } else if (v_material == 6) {
+            // Сенсор/освещённое окно: гладкое защитное стекло над прежней
+            // эмиссией. Наклоны швов и вмятины на него не переносятся.
+            n = normalize(v_normal);
+            albedo = mix(albedo, u_glass_tint * 0.035, 0.75);
+            roughness = u_finish_response.y;
+            metallic = 0.0;
+        }
+        // Бортовой номер — слой матовой трафаретной краски поверх и
+        // окрашенного листа, и оголённого усиления. Он вращается с бортом.
+        albedo = mix(albedo, registration_pigment, registration_ink);
+        roughness = mix(roughness, clamp(u_roughness, 0.60, 0.90), registration_ink);
+        metallic = mix(metallic, 0.025, registration_ink);
+    }
+
     return Surface(n, albedo, roughness, metallic, occlusion, emission);
 }
 
@@ -250,7 +492,13 @@ void main() {
         vec3 spec = texture(u_specular_map, v_uv).rgb * u_specular_tint;
         f0 = clamp(vec3(.025) + spec * .68, .025, .90);
     }
-    if (v_material == 2) f0 = vec3(0.075, 0.085, 0.095);
+    bool classic_surface = u_classic_finishes &&
+                           (v_material == 0 || v_material == 1 || v_material == 2 ||
+                            v_material == 4 || v_material == 6);
+    bool classic_glass = u_classic_finishes && (v_material == 2 || v_material == 6);
+    bool cobra_glass = u_cobra_finishes && v_material == 2;
+    if (classic_glass) f0 = vec3(0.040);
+    else if (v_material == 2) f0 = vec3(0.075, 0.085, 0.095);
     vec3 fresnel = fresnel_schlick(hv, f0);
     float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
@@ -261,6 +509,10 @@ void main() {
     float geometry_l = nl / (nl * (1.0 - k) + k);
     vec3 specular = distribution * geometry_v * geometry_l * fresnel / max(4.0 * nv * nl, 0.001);
     vec3 diffuse = (1.0 - fresnel) * (1.0 - metallic * 0.74) * albedo / PI;
+    if (classic_surface) {
+        diffuse = (1.0 - fresnel) * (1.0 - metallic) * albedo / PI;
+        if (classic_glass) diffuse *= 0.18;
+    }
     float visibility = 1.0;
     if (u_shadow_enabled && all(greaterThan(v_shadow, vec3(0.0))) &&
                             all(lessThan(v_shadow, vec3(1.0)))) {
@@ -290,9 +542,28 @@ void main() {
         vec3 reflected_fill = mix(vec3(.065, .078, .10), vec3(.18, .23, .29), reflection.y * .5 + .5);
         color += reflected_fill * edge_fresnel;
     }
-    if (v_material == 2) {
-        color += textureLod(u_sky, reflection, 1.1).rgb * edge_fresnel * 0.5;
-        color += vec3(0.035, 0.095, 0.15) * pow(1.0 - nv, 3.0);
+    if (classic_surface) {
+        // Та же широкая холодная полусфера, что освещает обшивку. Металл
+        // отражает её цвет, тогда как матовая краска в основном рассеивает.
+        vec3 reflected_fill = mix(vec3(0.065, 0.078, 0.10), vec3(0.18, 0.23, 0.29),
+                                  reflection.y * 0.5 + 0.5);
+        color += reflected_fill * edge_fresnel * occlusion;
+    }
+    if (v_material == 2 || (classic_glass && v_material == 6)) {
+        if (cobra_glass) {
+            color += cobra_cabin(view_direction, nv) * (1.0 - edge_fresnel);
+            color += COBRA_GLASS_TINT * vec3(0.022, 0.026, 0.030) *
+                     (0.40 + 0.60 * nl * visibility) * (1.0 - edge_fresnel);
+        } else if (classic_glass) {
+            // Чужой кораблю интерьер не рисуется: рассеянный свет
+            // заканчивается на тёмной подложке именно его стекла/сенсора.
+            float transmission = 0.30 + 0.70 * nv;
+            color += u_glass_tint * 0.11 * transmission *
+                     (0.40 + 0.60 * nl * visibility) * (1.0 - edge_fresnel);
+        } else {
+            color += textureLod(u_sky, reflection, 1.1).rgb * edge_fresnel * 0.5;
+            color += vec3(0.035, 0.095, 0.15) * pow(1.0 - nv, 3.0);
+        }
     }
     color += surface.emission;
     frag_color = vec4(display_color(color), 1.0);

@@ -302,7 +302,7 @@ class _Mesh:
             j = (i + 1) % len(points)
             self.polygon((bottom[i], bottom[j], top[j], top[i]), 1)
 
-    def canopy(self, points, normal, height):
+    def canopy(self, points, normal, height, *, planar_panes=False):
         """Низкий остеклённый фонарь: плечи, два стекла и несущая рама.
 
         Это собственное оформление атласа. Подошва входит в исходную
@@ -318,7 +318,17 @@ class _Mesh:
         bottom = outline - normal * .5
         shoulder = outline + normal * height * .18
         roof = _inset(outline, .79) + normal * height
-        roof[[1, 4]] += normal * height * .18
+        ridge_rise = np.ones(2)
+        if planar_panes:
+            # У трапециевидной крыши разная ширина спереди и сзади.
+            # Одинаковый подъём обоих концов переплёта скручивал каждое
+            # стекло: диагональ триангуляции разрезала мягкий блик.
+            # Подъём пропорционально ширине даёт один настоящий скат
+            # каждой половине, сохраняя исходные внешние углы крыши.
+            widths = np.array((np.linalg.norm(roof[2] - roof[0]),
+                               np.linalg.norm(roof[3] - roof[5])))
+            ridge_rise = widths / widths.max()
+        roof[[1, 4]] += ridge_rise[:, None] * normal * height * .18
         self.oriented(bottom, -normal, 1)
         for i in range(6):
             j = (i+1) % 6
@@ -469,7 +479,7 @@ def _extra_details(mesh, model_id, points, hull):
 
     def canopy_on(face, patch, height):
         patch, normal = _project(patch, points[list(hull[face])])
-        mesh.canopy(patch, normal, height)
+        mesh.canopy(patch, normal, height, planar_panes=True)
 
     def triangular_canopy(face, left, right, apex, low=.25, high=.72, height=2.5):
         a, b, c = points[[left, right, apex]]

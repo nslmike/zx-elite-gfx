@@ -14,6 +14,8 @@ import moderngl
 import numpy as np
 import pygame
 
+from .model import COBRA_ID
+
 
 _SHADERS = Path(__file__).with_name("shaders")
 _SUN = np.array((-0.62, 0.48, 0.62), dtype="f4")
@@ -21,6 +23,7 @@ _SUN /= np.linalg.norm(_SUN)
 SUN_DIRECTION = tuple(float(value) for value in _SUN)
 _SKY_SIZE = 1536
 _SURFACE_SIZE = 2048
+_FINISH_SIZE = 1024
 
 # Место бортового номера на правом плече корпуса (X, Z, ширина трафарета).
 _REGISTRATION = {8: (.24, .01, .25), 9: (.55, -.11, .30), 12: (.55, -.11, .30),
@@ -95,6 +98,51 @@ _STYLES = (
     _Style("c4c2ae", "8d9291", "b56136", .63, .59, .37, 1, 1.0),  # Krait
     _Style("999575", "606852", "5d8161", .47, .53, .62, 2, .82, "9befac", "c2eda6"),
     _Style("c9d0c6", "839997", "3d7776", .26, .51, .29, 2, 2.2),  # Dodo
+)
+
+
+@dataclass(frozen=True)
+class _ClassicFinish:
+    """Авторские покрытия только исходных каркасов, отдельно от импортных T/M.
+
+    layout: семейство силовых секций, доля металла, масштаб и сдвиг.
+    response: шероховатость металла и стекла, крупный и мелкий рельеф.
+    damage: сколы кромок, обтирка, вмятины и направленные царапины.
+    """
+    layout: tuple[float, float, float, float]
+    response: tuple[float, float, float, float]
+    damage: tuple[float, float, float, float]
+    paint_roughness: float
+    wear: float
+    metal: str
+    glass: str
+
+
+# Цвета и трафареты прежней ливреи остаются в _STYLES. Эта таблица описывает
+# назначение деталей, а не перекрашивает весь флот одним материалом. В частности,
+# грузовые продольные накладки Python отличаются от поперечных ремонтных поясов
+# пирата; у полицейского корабля металл узкий и целый, у разведчика — на плечах.
+_CLASSIC_FINISHES = (
+    _ClassicFinish((4, .27, 1.22, .00), (.40, .49, 2.50, .72), (.55, .95, .55, .65), .79, .40, "8b959b", "65766e"),  # Coriolis
+    _ClassicFinish((1, .34, 1.45, -.34), (.31, .40, 1.90, .45), (.24, .32, .10, .28), .70, .13, "b8b7ae", "647681"),  # Missile: крепления и обтекатель
+    _ClassicFinish((1, .14, .68, .12), (.49, .53, 2.00, .62), (.39, .64, .20, .40), .82, .25, "9b9c8b", "8b9276"),  # Escape pod: теплозащита
+    _ClassicFinish((4, .00, 1.00, .00), (.74, .50, 2.00, 1.10), (.00, .00, .00, .00), .93, .98, "81766a", "707575"),  # Splinter: природный камень
+    _ClassicFinish((3, .47, .82, .17), (.54, .52, 3.20, 1.25), (.86, 1.30, .98, 1.15), .83, .82, "9a9785", "687b78"),  # Canister: грузовые рёбра
+    _ClassicFinish((4, .00, 1.00, .00), (.90, .50, 2.70, 1.30), (.00, .00, .00, .00), .93, .95, "81766a", "707575"),  # Boulder
+    _ClassicFinish((4, .00, 1.00, .00), (.90, .50, 3.00, 1.30), (.00, .00, .00, .00), .93, .95, "81766a", "707575"),  # Asteroid
+    _ClassicFinish((4, .10, .85, .02), (.58, .54, 3.10, 1.25), (.71, 1.30, .85, 1.20), .86, .83, "8e8c79", "8c9471"),  # Hermit: камень, металл только в шахте
+    _ClassicFinish((2, .13, 1.50, .20), (.25, .37, 2.15, .38), (.20, .24, .08, .20), .73, .12, "aebbc3", "83939f"),  # Viper: чистые носовые усиления
+    _ClassicFinish((0, 1.00, 1.00, .00), (.29, .46, 2.30, .70), (.46, .42, .23, .45), .76, .20, "999d9d", "5f676a"),  # Cobra: исходные плечи
+    _ClassicFinish((3, .45, .80, -.08), (.51, .50, 3.45, 1.20), (.75, 1.45, 1.10, 1.35), .84, .82, "a4987e", "7a8981"),  # Python: обтирка при грузовых работах
+    _ClassicFinish((1, .65, 1.10, -.18), (.43, .56, 3.90, 1.48), (1.50, .82, 1.65, 1.10), .87, .95, "9b9c8d", "777b68"),  # Python pirate: перебитые пояса и вмятины
+    _ClassicFinish((2, .48, .74, -.15), (.36, .52, 3.75, 1.55), (1.55, .78, 1.45, 1.50), .81, .91, "a39591", "7f7377"),  # Cobra pirate: диагональные боевые сколы
+    _ClassicFinish((2, .26, 1.03, -.06), (.33, .43, 2.55, .68), (.35, .64, .30, .58), .77, .28, "9db3ad", "829b8f"),  # Asp: экспедиционные плечи
+    _ClassicFinish((1, .12, 1.30, .24), (.21, .34, 1.95, .32), (.12, .18, .04, .17), .65, .08, "b7c0c6", "77858d"),  # Fer-de-Lance: ухоженные редкие вставки
+    _ClassicFinish((4, .52, 1.18, .07), (.37, .59, 2.90, .90), (.55, .48, .45, .70), .74, .35, "a9ac80", "8eab76"),  # Thargoid: радиальные сенсорные секции
+    _ClassicFinish((1, .33, .79, -.21), (.46, .51, 2.95, .92), (.72, .87, .62, .90), .80, .55, "9da8aa", "8c8a78"),  # Sidewinder: поперечные рабочие секции
+    _ClassicFinish((2, .35, .88, .01), (.42, .48, 3.15, 1.08), (.95, .78, .78, 1.20), .79, .68, "aaa18a", "8f8173"),  # Krait: крылья и треугольные стёкла
+    _ClassicFinish((4, .68, .73, -.12), (.32, .62, 2.75, 1.00), (.62, .43, .52, .75), .78, .47, "a0a47b", "88a571"),  # Thargon: сенсор, без человеческой кабины
+    _ClassicFinish((4, .36, 1.65, .13), (.43, .50, 2.65, .76), (.48, .88, .42, .60), .79, .32, "91a5a2", "7b9487"),  # Dodo: технологические секторы станции
 )
 
 
@@ -229,6 +277,118 @@ def _surface_bytes() -> bytes:
     return image.tobytes()
 
 
+def _surface_slope_bytes(surface: bytes) -> bytes:
+    """Непрерывно интерполируемый наклон исходного G-height, dH/dUV.
+
+    Центральный stencil даёт симметричную фаску с тем же перепадом высоты.
+    Производная вычисляется в пространстве карты до экранной фильтрации:
+    билинейная интерполяция slope не повторяет ступени экранных 2×2 quad.
+    Периодические края и единицы UV согласованы с исходной repeat-текстурой.
+    """
+    height = np.frombuffer(surface, dtype="u1").reshape(_SURFACE_SIZE, _SURFACE_SIZE, 4)[:, :, 1]
+    height = height.astype("f4") / 255.0
+    du = np.roll(height, -1, axis=1) - np.roll(height, 1, axis=1)
+    dv = np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)
+    return (np.stack((du, dv), axis=-1) * (_SURFACE_SIZE * 0.5)).astype("f2").tobytes()
+
+
+def _finish_heightfields(surface: bytes) -> tuple[np.ndarray, np.ndarray]:
+    """Два периодических рельефа для собственного классического флота.
+
+    Первый расширяет настоящие канавки исходной G-карты до широких фасок:
+    они переживают mipmap и читаются в автопролёте. Второй даёт мягкие
+    вмятины с приподнятым валиком и немного неглубоких следов инструмента.
+    Старые RGBA и наклон исходной G-карты этим не изменяются.
+    """
+    size = _FINISH_SIZE
+    source = np.frombuffer(surface, dtype="u1").reshape(_SURFACE_SIZE, _SURFACE_SIZE, 4)
+    factor = _SURFACE_SIZE // size
+    if _SURFACE_SIZE % size:
+        raise ValueError("Карта фасок должна делить размер исходной обшивки")
+    # Учитывается любой низкий texel блока: узкая исходная канавка не
+    # исчезает при уменьшении карты. Острова оборудования получают ту же фаску.
+    groove = (source[:, :, 1] < 112).reshape(size, factor, size, factor).any(axis=(1, 3))
+    distance = np.where(groove, 0., 20.).astype("f4")
+    for _ in range(10):
+        neighbours = [distance]
+        for axis in (0, 1):
+            neighbours.extend((np.roll(distance, -1, axis=axis) + 1.,
+                               np.roll(distance, 1, axis=axis) + 1.))
+        for x, y in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            neighbours.append(np.roll(np.roll(distance, x, axis=1), y, axis=0) + 1.41421356)
+        distance = np.minimum.reduce(neighbours)
+    t = np.clip(distance / 8.5, 0., 1.)
+    bevel = -.18 * (1. - t * t * (3. - 2. * t))
+
+    rng = np.random.default_rng(0xC1A551C)
+    dents = np.zeros((size, size), dtype="f4")
+
+    def add_mark(x, y, radius, aspect, angle, depth, kind=0):
+        extent = int(np.ceil(radius * max(1., aspect) * 1.45))
+        offsets = np.arange(-extent, extent + 1, dtype="f4")
+        u, v = np.meshgrid(offsets, offsets)
+        ca, sa = np.cos(angle), np.sin(angle)
+        along = (u * ca + v * sa) / (aspect * radius)
+        across = (-u * sa + v * ca) / radius
+        if kind in (2, 3):
+            # Косой удар не оставляет замкнутого круглого валика: лист
+            # складывается в длинную мягкую канавку с разными плечами.
+            bend = across + .18 * np.sin(along * 2.1 + .4)
+            envelope = np.exp(-((along + .12) * 1.12) ** 4)
+            crater = -.82 * np.exp(-bend * bend * 5.8) * envelope
+            crater += .23 * np.exp(-((bend - .52) / .22) ** 2) * envelope * np.clip(.8 - along * .34, .1, 1.)
+            if kind == 3:
+                # Двойной залом: второй след короче, смещён и слабее первого.
+                second = across + .42 + .27 * along
+                second_end = np.exp(-((along - .18) * 1.5) ** 4)
+                crater -= .42 * np.exp(-second * second * 13.) * second_end
+                crater += .12 * np.exp(-((second + .38) / .18) ** 2) * second_end
+        else:
+            # Асимметричная впадина с вырванной передней частью валика.
+            # Лёгкая кривизна и разный уклон стенок убирают вид «кнопки».
+            bend = across + .15 * np.sin(along * 1.9 + .5)
+            r2 = along * along + bend * bend
+            radius_field = np.sqrt(r2)
+            lip = np.exp(-((radius_field - .92) / .21) ** 2)
+            lip *= np.clip(.62 - along * .53 + bend * .18, .03, 1.)
+            crater = -np.exp(-r2 * (2.8 + .48 * along)) + .27 * lip
+            crater *= np.clip((1.45 - radius_field) * 5., 0., 1.)
+        rows = (y + offsets.astype(np.int32)) % size
+        columns = (x + offsets.astype(np.int32)) % size
+        dents[np.ix_(rows, columns)] += (crater * depth).astype("f4")
+
+    # Диаметр крупных ударов сопоставим с несколькими листами обшивки.
+    # Никакой регулярной сетки: вытянутые следы имеют разные азимуты и размеры.
+    for index in range(44):
+        radius = rng.uniform(24., 49.) if index < 32 else rng.uniform(65., 103.)
+        kind = index % 4
+        aspect = rng.uniform(.68, 1.30) if kind == 0 else rng.uniform(1.25, 2.20)
+        add_mark(int(rng.integers(size)), int(rng.integers(size)), radius,
+                 aspect, rng.uniform(-np.pi, np.pi),
+                 rng.uniform(.18, .33) if index < 32 else rng.uniform(.33, .49), kind)
+    # Малая непериодичная по длине борозда не превращается в решётку.
+    for _ in range(340):
+        add_mark(int(rng.integers(size)), int(rng.integers(size)), rng.uniform(.8, 1.6),
+                 rng.uniform(3., 12.), rng.uniform(-.5, .5), rng.uniform(.002, .008))
+    dents += (_noise2(size, 163, rng) - .5) * .004
+    return bevel.astype("f4"), dents
+
+
+def _finish_slope_bytes(surface: bytes) -> bytes:
+    """RGBA16F dH/dUV: RG — широкие фаски, BA — вмятины и следы.
+
+    Карта повторяется, поэтому сосед через край участвует в производной.
+    Раздельные пары позволяют чистому Viper сохранить глубокий шов, имея
+    гораздо меньше ударных деформаций, чем транспорт или пират.
+    """
+    heightfields = _finish_heightfields(surface)
+    gradients = []
+    for height in heightfields:
+        gradients.extend(((np.roll(height, -1, axis=1) - np.roll(height, 1, axis=1)) * (_FINISH_SIZE * .5),
+                          (np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)) * (_FINISH_SIZE * .5)))
+    return np.stack(gradients, axis=-1).astype("f2").tobytes()
+
+
 def _noise3(x: np.ndarray, y: np.ndarray, z: np.ndarray, grid: np.ndarray) -> np.ndarray:
     size = grid.shape[0]
     ix, iy, iz = np.floor(x).astype("i2"), np.floor(y).astype("i2"), np.floor(z).astype("i2")
@@ -361,11 +521,24 @@ class SpaceLook:
         )
         self._sky_vao = ctx.vertex_array(self._sky_program, [])
         self._stencils = _stencils(ctx)
-        self._surface = ctx.texture((_SURFACE_SIZE, _SURFACE_SIZE), 4, _surface_bytes())
+        surface = _surface_bytes()
+        self._surface = ctx.texture((_SURFACE_SIZE, _SURFACE_SIZE), 4, surface)
         self._surface.repeat_x = self._surface.repeat_y = True
         self._surface.build_mipmaps()
         self._surface.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
         self._surface.anisotropy = min(8.0, ctx.max_anisotropy)
+        self._surface_slope = ctx.texture((_SURFACE_SIZE, _SURFACE_SIZE), 2,
+                                          _surface_slope_bytes(surface), dtype="f2")
+        self._surface_slope.repeat_x = self._surface_slope.repeat_y = True
+        self._surface_slope.build_mipmaps()
+        self._surface_slope.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+        self._surface_slope.anisotropy = min(8.0, ctx.max_anisotropy)
+        self._finish_slope = ctx.texture((_FINISH_SIZE, _FINISH_SIZE), 4,
+                                         _finish_slope_bytes(surface), dtype="f2")
+        self._finish_slope.repeat_x = self._finish_slope.repeat_y = True
+        self._finish_slope.build_mipmaps()
+        self._finish_slope.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+        self._finish_slope.anisotropy = min(8.0, ctx.max_anisotropy)
         # На Apple Metal RGB16F + NPOT + glGenerateMipmap повреждает часть
         # базового уровня +X. RGBA16F проверен кодированием направлений сферы;
         # дополнительный канал сохраняет корректными и base, и mip-уровни.
@@ -377,6 +550,9 @@ class SpaceLook:
         # GL_TEXTURE_CUBE_MAP_SEAMLESS входит в Core начиная с 3.2.
         ctx.enable_direct(0x884F)
         self.hull["u_surface"].value = 0
+        if "u_surface_slope" in self.hull:
+            self.hull["u_surface_slope"].value = 9
+        self.hull["u_finish_slope"].value = 10
         self.hull["u_stencils"].value = 3
         self._imported_textures = OrderedDict()
         self._imported_texture_bytes = 0
@@ -396,23 +572,33 @@ class SpaceLook:
     def configure_model(self, model_id: int, *, imported=False, authored=False, cross_bitangent=False) -> None:
         """Установить самостоятельную ливрею модели и привязать общие текстуры."""
         style = _STYLES[model_id] if model_id < len(_STYLES) else _STYLES[13]
+        classic = 0 <= model_id < len(_CLASSIC_FINISHES) and not (imported or authored)
+        finish = _CLASSIC_FINISHES[model_id] if classic else _CLASSIC_FINISHES[13]
         uniforms = {
             "u_imported": imported,
             "u_author_maps": authored,
             "u_cross_bitangent": cross_bitangent,
+            # Только кабина №9 имеет собственную модель интерьера; покрытия
+            # всех остальных исходных каркасов задаются отдельным профилем.
+            "u_cobra_finishes": model_id == COBRA_ID and not (imported or authored),
+            "u_classic_finishes": classic,
+            "u_finish_layout": finish.layout,
+            "u_finish_response": finish.response,
+            "u_damage_profile": finish.damage,
+            "u_glass_tint": _linear(finish.glass),
             "u_part_type": 0,
             "u_hull_color": _linear(style.hull),
             "u_secondary_color": _linear(style.secondary),
             "u_accent_color": _linear(style.accent),
-            "u_metal_color": _linear(style.metal),
+            "u_metal_color": _linear(finish.metal if classic else style.metal),
             "u_engine_color": _linear(style.engine),
             "u_window_color": _linear(style.windows),
             "u_uv_offset": ((model_id * .173) % 1, (model_id * .317) % 1),
             "u_patch": _REGISTRATION.get(model_id, (0., 0., 0.)),
             "u_stencil_tile": (model_id % 4, 7 - model_id // 4),
             "u_texture_scale": style.scale,
-            "u_wear": style.wear,
-            "u_roughness": style.roughness,
+            "u_wear": finish.wear if classic else style.wear,
+            "u_roughness": finish.paint_roughness if classic else style.roughness,
             "u_metallic": style.metallic,
             "u_marking_style": float(style.stripe),
             "u_seed": model_id * .73,
@@ -420,6 +606,8 @@ class SpaceLook:
         for name, value in uniforms.items():
             self.hull[name].value = value
         self._surface.use(location=0)
+        self._surface_slope.use(location=9)
+        self._finish_slope.use(location=10)
         self._sky.use(location=1)
         self._stencils.use(location=3)
 
@@ -481,5 +669,6 @@ class SpaceLook:
     def release(self) -> None:
         """Освободить GL-ресурсы до закрытия контекста."""
         self.release_imported_textures()
-        for resource in (self._sky_vao, self._surface, self._stencils, self._white, self._sky, self._sky_program, self.hull):
+        for resource in (self._sky_vao, self._surface, self._surface_slope, self._finish_slope, self._stencils,
+                         self._white, self._sky, self._sky_program, self.hull):
             resource.release()
