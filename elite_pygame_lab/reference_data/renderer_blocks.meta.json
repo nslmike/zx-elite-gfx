@@ -1,0 +1,42 @@
+{
+  "description": "Minimal original ZX Spectrum Elite blocks for independent Z80 differential verification only. Not a full game snapshot. Original machine code/model data are third-party material; no relicensing is asserted.",
+  "source_repository": "https://github.com/Rasmus-M/elite-skoolkit",
+  "source_commit": "66ee08efb2aceddbd67d5003c28fed3477b34850",
+  "source_listing": "src/elite.skool",
+  "tape_sha256": "061c14a661064183f09829b0f28c97df919505dc679550b680394da82fbf78e4",
+  "snapshot_sha256": "806f1729b2d4b7813c6ee8e7ceae693abc48dd7501f471cff08f4d1cd870ca84",
+  "code_and_model_match_tape": true,
+  "square_table_source": "title-loop snapshot, after original table initialization",
+  "blocks": [
+    {
+      "name": "cobra_blueprint_and_geometry",
+      "address": "0x6490",
+      "end_exclusive": "0x6632",
+      "length": 418,
+      "sha256": "ff6140b0c97dfb278b02f82d3d901e1b6f22ae99d812f5284ca74e1e732f1f58"
+    },
+    {
+      "name": "ship_renderer_and_line_rasterizer",
+      "address": "0xA84D",
+      "end_exclusive": "0xB4D6",
+      "length": 3209,
+      "sha256": "92e1df4a98cc279759237ae2236b62977e00cf7b082dc14179c125e16cbdefb0"
+    },
+    {
+      "name": "face_classification",
+      "address": "0xBCD4",
+      "end_exclusive": "0xBE00",
+      "length": 300,
+      "sha256": "abd75c07d52f436ddb572ab632323ca00cce018a95c7686b2538ac56924bb149"
+    },
+    {
+      "name": "initialized_square_table",
+      "address": "0xBE00",
+      "end_exclusive": "0xC000",
+      "length": 512,
+      "sha256": "b0c15b1c3eea86db9c92a7e1cb6e83d96776fa86f5ad2043318b64aae48fa569"
+    }
+  ],
+  "source_tape": "tape/elite.tap",
+  "source_snapshot": "snapshot/elite-title-loop.sna"
+}
