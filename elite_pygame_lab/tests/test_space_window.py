@@ -121,15 +121,16 @@ class SpaceWindowTest(unittest.TestCase):
                     def draw():
                         renderer.draw(scene, MagicMock(), drawable, True)
                         self.assertEqual(hud.pixel_ratio, ratio)
+                        layout_key = (scene.camera_mode, scene.flight_profile)
                         for action, rect in hud.options.items():
                             point = tuple(value / ratio for value in rect.center)
                             self.assertEqual(hud.tab_at(controls._pixel(point, logical, drawable)), action)
                         if ratio == 1:
-                            layouts[scene.camera_mode] = {action: rect.center for action, rect in hud.options.items()}
+                            layouts[layout_key] = {action: rect.center for action, rect in hud.options.items()}
                         else:
                             # Тот же логический щелчок попадает в реальную
                             # кнопку и после удвоения оконного backing.
-                            for action, point in layouts[scene.camera_mode].items():
+                            for action, point in layouts[layout_key].items():
                                 self.assertEqual(hud.tab_at(controls._pixel(point, logical, drawable)), action)
 
                     def click(action):
@@ -144,8 +145,18 @@ class SpaceWindowTest(unittest.TestCase):
                     self.assertEqual(scene.elapsed, 1)
                     click("toggle_flight")
                     self.assertEqual(scene.camera_mode, "flight")
+                    self.assertTrue(controls.looking)
                     draw()
                     self.assertNotIn("toggle_pause", hud.options)
                     self.assertNotIn("toggle_auto", hud.options)
+                    for kind in (pygame.KEYDOWN, pygame.KEYUP):
+                        self.assertTrue(controls.event(pygame.event.Event(kind, key=pygame.K_ESCAPE),
+                                                       logical, drawable))
+                    self.assertFalse(controls.looking)
+                    self.assertEqual(scene.camera_mode, "flight")
+                    click("cycle_flight_profile")
+                    self.assertEqual(scene.flight_profile, "elite")
+                    self.assertFalse(controls.looking)
+                    draw()
                     click("toggle_flight")
                     self.assertEqual(scene.camera_mode, "flyby")

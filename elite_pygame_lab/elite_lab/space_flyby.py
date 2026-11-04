@@ -6,28 +6,19 @@
 а ``scrub(dt)`` перематывает текущий показ, сохраняя ручные настройки.
 """
 
-from math import atan2, cos, floor, isfinite, pi, sin, sqrt, tau
+from math import cos, floor, isfinite, pi, sin, sqrt, tau
 from sys import float_info
 
 import numpy as np
 
 from .model import COBRA_ID, DODO_ID, MODELS
-from .space_scene import SpaceObject, SpaceScene, _unit
+from .space_scene import SpaceObject, SpaceScene, _rotation, _unit
 
 
 def _smootherstep(value):
     """Плавный переход 0…1 с нулевыми первой и второй производными на краях."""
     value = min(1.0, max(0.0, value))
     return value**3 * (10 - 15*value + 6*value**2)
-
-
-def _rotation(axis, angle):
-    """Обычная матрица Родрига; локальная ось не зависит от ракурса камеры."""
-    x, y, z = _unit(axis)
-    c, s, t = cos(angle), sin(angle), 1 - cos(angle)
-    return np.array(((t*x*x+c, t*x*y-s*z, t*x*z+s*y),
-                     (t*x*y+s*z, t*y*y+c, t*y*z-s*x),
-                     (t*x*z-s*y, t*y*z+s*x, t*z*z+c)))
 
 
 def _station_dock(ship):
@@ -385,17 +376,8 @@ class FlybyScene(SpaceScene):
         """Начать свободный полёт с полным текущим видом; повтор не меняет его."""
         if self.camera_mode == "flight":
             return
-        self._flight_eye = self.eye
-        right, _, forward = self._view_basis()
         self._flight_distance = self.distance
-        horizontal = float(np.linalg.norm(forward[[0, 2]]))
-        self._yaw = (atan2(forward[0], -forward[2]) if horizontal > 1e-12
-                     else atan2(right[2], right[0]))
-        self._pitch = atan2(forward[1], horizontal)
-        upright_right = np.array((cos(self._yaw), 0, sin(self._yaw)))
-        upright_up = np.cross(upright_right, forward)
-        self._flight_roll = atan2(np.dot(right, upright_up), np.dot(right, upright_right))
-        self.camera_mode = "flight"
+        super().fly()
         self.selected = self._nearest_object()
 
     def toggle_flight(self):
@@ -415,6 +397,7 @@ class FlybyScene(SpaceScene):
             self._source_epoch += elapsed - self.elapsed
             self.elapsed = elapsed
             self.camera_mode = "flyby"
+            self.flight_speed = 0.0
             self._animate()
         return self.camera_mode
 
@@ -458,13 +441,7 @@ class FlybyScene(SpaceScene):
 
     def _view_basis(self):
         if self.camera_mode == "flight":
-            # Свободный yaw идёт вокруг мировой Y, как в атласе. Отдельный
-            # крен сохраняет входной вид, включая относительный взгляд ПКМ.
-            forward = self.forward
-            right = np.array((cos(self._yaw), 0, sin(self._yaw)))
-            up = np.cross(right, forward)
-            c, s = cos(self._flight_roll), sin(self._flight_roll)
-            return right * c + up * s, up * c - right * s, forward
+            return super()._view_basis()
         forward = _unit(self._camera_target - self._camera_eye)
         right = _unit(np.cross(forward, self._camera_up))
         up = np.cross(right, forward)

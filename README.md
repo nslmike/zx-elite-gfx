@@ -29,7 +29,14 @@ python -m elite_lab --mode space --model-source mixed
 
 Click a ship or its number to inspect it. Drag to orbit, scroll to zoom and press **O** to return to the ring. **M** changes the model source, **T** switches between artist textures and procedural hull panels, and **I** opens the credits for the selected ship.
 
-For an automatic tour, run `python -m elite_lab --mode flyby`. Press **F** to take control of the camera, fly with **WASD** and look around by dragging with the right mouse button. Press **F** again to rejoin the tour beside the nearest exhibit. [Free flight near Krait](elite_pygame_lab/previews/space_free_flight.png)
+For an automatic tour, run `python -m elite_lab --mode flyby`. Press **F** to take control of the camera and **F** again to rejoin the tour beside the nearest exhibit. In free flight, press **C** to switch between **3D** and **Elite**. The same controls work in the atlas.
+
+| Profile | Keyboard controls |
+| --- | --- |
+| **3D** (default) | **W / S** forward/back, **A / D** strafe, **Space / Shift** world up/down, **Q / E** roll, arrow keys turn the view |
+| **Elite** (stylized) | **← / →** roll, **↑ / ↓** nose up/down, **W / S** increase/decrease forward speed. Releasing the keys keeps the chosen speed, including zero |
+
+Moving the mouse or trackpad steers as soon as you enter free flight. Press **Esc** to use the on-screen buttons and click the scene to steer again. During the automatic tour, hold **Shift** and use the arrow keys to look around. **R** restores the view along the route. [Full controls](elite_pygame_lab/README.md#две-схемы-свободного-полёта) · [Free flight near Krait](elite_pygame_lab/previews/space_free_flight.png)
 
 ### Explore the ZX renderer
 
@@ -49,4 +56,4 @@ This is an independent fan project inspired by Ian Bell and David Braben's *Elit
 
 ## По-русски
 
-Здесь можно разобрать каркас Elite до отдельного пикселя и облететь те же корабли в OpenGL. Для первого запуска скачайте три исходных файла в `~/Downloads` и выполните команды выше. Щёлкните по кораблю, чтобы подлететь ближе. Клавиша **O** возвращает к общему виду. [Подготовка данных](elite_pygame_lab/reference_data/README.md) · [Запуск и управление](elite_pygame_lab/README.md) · [Разбор рендерера ZX](FINDINGS.md)
+Здесь можно разобрать каркас Elite до отдельного пикселя и облететь те же корабли в OpenGL. Для первого запуска скачайте три исходных файла в `~/Downloads` и выполните команды выше. Щёлкните по кораблю, чтобы подлететь ближе. Клавиша **O** возвращает к общему виду. В свободном полёте **C** переключает схемы **3D** и **Elite**. В Elite стрелки задают крен и тангаж, а **W / S** меняют сохраняемую скорость. [Подготовка данных](elite_pygame_lab/reference_data/README.md) · [Запуск и управление](elite_pygame_lab/README.md) · [Разбор рендерера ZX](FINDINGS.md)

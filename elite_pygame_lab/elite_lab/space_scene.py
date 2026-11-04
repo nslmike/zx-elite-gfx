@@ -7,7 +7,7 @@
 """
 
 from dataclasses import dataclass
-from math import cos, exp, pi, sin, sqrt, tan
+from math import atan2, cos, exp, isfinite, pi, sin, sqrt, tan
 
 import numpy as np
 
@@ -30,6 +30,15 @@ def _unit(vector):
     return vector / np.linalg.norm(vector)
 
 
+def _rotation(axis, angle):
+    """Матрица Родрига: положительный угол следует правилу правой руки."""
+    x, y, z = _unit(axis)
+    c, s, t = cos(angle), sin(angle), 1 - cos(angle)
+    return np.array(((t*x*x+c, t*x*y-s*z, t*x*z+s*y),
+                     (t*x*y+s*z, t*y*y+c, t*y*z-s*x),
+                     (t*x*z-s*y, t*y*z+s*x, t*z*z+c)))
+
+
 class SpaceScene:
     """Общий план, осмотр одного корпуса и свободный полёт между ними.
 
@@ -43,6 +52,8 @@ class SpaceScene:
     ring_radius = 25.5
     fov = 48.0
     speed = 10.0
+    flight_max_speed = 30.0
+    flight_acceleration = 10.0
 
     def __init__(self, selected=None, *, model_source="elite", texture_source="author", catalog=None):
         self.catalog = catalog or AssetCatalog()
@@ -62,6 +73,9 @@ class SpaceScene:
         self._pitch = -0.58
         self._zoom = 1.0
         self._flight_eye = np.zeros(3, dtype=np.float64)
+        self._flight_basis = None
+        self.flight_profile = "modern"
+        self.flight_speed = 0.0
         self._overview_cache = None
         self._inspect_cache = None
 
@@ -162,6 +176,8 @@ class SpaceScene:
     @property
     def forward(self):
         """Единичное направление взгляда в мировых координатах."""
+        if self.camera_mode == "flight":
+            return self._flight_basis[2].copy()
         return np.array((sin(self._yaw) * cos(self._pitch), sin(self._pitch),
                          -cos(self._yaw) * cos(self._pitch)))
 
@@ -266,33 +282,102 @@ class SpaceScene:
     def overview(self):
         """Вернуть полный наклонённый круг, не сбрасывая выбранный экспонат."""
         self.camera_mode = "overview"
+        self.flight_speed = 0.0
         self._yaw, self._pitch, self._zoom = 0.0, -0.58, 1.0
 
     def select(self, index, *, focus=True):
         self.selected = int(index) % len(self.objects)
         if focus:
             self.camera_mode = "inspect"
+            self.flight_speed = 0.0
             self._yaw, self._pitch = self._inspection_angles[self.selected]
             self._zoom = 1.0
 
     def fly(self):
-        """Начать свободный полёт из текущей точки с тем же направлением."""
-        self._flight_eye = self.eye
+        """Передать полёту полную позу камеры; повторный вызов её сохраняет."""
+        if self.camera_mode == "flight":
+            return
+        self.set_flight_pose(self.eye, self._view_basis())
+
+    def set_flight_pose(self, eye, basis):
+        """Задать исходный вид полёта: точку и базис (вправо, вверх, вперёд).
+
+        Базис уже ортонормирован; копируем его целиком, сохраняя крен.
+        Явный перенос обнуляет тягу и сохраняет выбранную схему управления.
+        """
+        self._flight_eye = np.array(eye, dtype=np.float64)
+        self._flight_basis = np.array(basis, dtype=np.float64)
+        self._sync_flight_angles()
+        self.flight_speed = 0.0
         self.camera_mode = "flight"
 
+    def _sync_flight_angles(self):
+        """Углы нужны только мировым осям Modern, не для хранения крена."""
+        right, _, forward = self._flight_basis
+        horizontal = float(np.linalg.norm(forward[[0, 2]]))
+        self._yaw = (atan2(forward[0], -forward[2]) if horizontal > 1e-12
+                     else atan2(right[2], right[0]))
+        self._pitch = atan2(forward[1], horizontal)
+
+    def cycle_flight_profile(self):
+        """Сменить схему без пересборки позы и начать с нулевой тяги."""
+        self.flight_profile = "elite" if self.flight_profile == "modern" else "modern"
+        self.flight_speed = 0.0
+        return self.flight_profile
+
+    def turn_flight(self, yaw=0.0, pitch=0.0, roll=0.0):
+        """Радианы: нос вправо, нос вверх, крен вправо по часовой пилота.
+
+        В Modern рысканье идёт вокруг мировой Y, тангаж — относительно
+        горизонта. Elite вращается вокруг собственных осей без полюсов
+        и ограничения тангажа. Обе схемы сохраняют полноценный крен.
+        """
+        yaw, pitch, roll = float(yaw), float(pitch), float(roll)
+        if (self.camera_mode != "flight" or not all(map(isfinite, (yaw, pitch, roll)))
+                or yaw == pitch == roll == 0):
+            return
+
+        def rotate(axis, angle):
+            if angle:
+                self._flight_basis = self._flight_basis @ _rotation(axis, angle).T
+
+        if self.flight_profile == "elite":
+            rotate(self._flight_basis[1], -yaw)
+            rotate(self._flight_basis[0], pitch)
+        else:
+            rotate((0, 1, 0), -yaw)
+            self._yaw += yaw
+            minimum, maximum = min(-1.48, self._pitch), max(1.48, self._pitch)
+            pitch = float(np.clip(self._pitch + pitch, minimum, maximum)) - self._pitch
+            rotate((cos(self._yaw), 0, sin(self._yaw)), pitch)
+        rotate(self._flight_basis[2], roll)
+        # Убираем накопление погрешности после длинных серий полных петель.
+        right, _, forward = self._flight_basis
+        forward = _unit(forward)
+        right = _unit(right - forward * np.dot(right, forward))
+        self._flight_basis = np.array((right, np.cross(right, forward), forward))
+        self._sync_flight_angles()
+
     def drag(self, dx, dy):
+        if self.camera_mode == "flight":
+            horizontal, pitch = float(dx) * .005, -float(dy) * .005
+            if self.flight_profile == "elite":
+                self.turn_flight(0.0, pitch, horizontal)
+            else:
+                self.turn_flight(horizontal, pitch, 0.0)
+            return
         self._yaw = (self._yaw + float(dx) * 0.005) % (2 * pi)
         minimum, maximum = (-1.48, -0.20) if self.camera_mode == "overview" else (-1.48, 1.48)
-        if self.camera_mode == "flight":
-            # Переданный извне вид может смотреть прямо в полюс. Сначала
-            # плавно выходим из него, затем действуют обычные пределы.
-            minimum, maximum = min(minimum, self._pitch), max(maximum, self._pitch)
         self._pitch = float(np.clip(self._pitch - float(dy) * 0.005, minimum, maximum))
 
     def zoom(self, steps):
         steps = float(steps)
         if self.camera_mode == "flight":
-            self._flight_eye += self.forward * steps * self.speed * 0.18
+            if self.flight_profile == "elite":
+                self.flight_speed = float(np.clip(self.flight_speed + steps * self.speed * .18,
+                                                  0, self.flight_max_speed))
+            else:
+                self._flight_eye += self.forward * steps * self.speed * 0.18
             return
         limits = (0.32, 2.5) if self.camera_mode == "overview" else (0.36, 4.0)
         self._zoom = float(np.clip(self._zoom * exp(np.clip(-steps * 0.12, -20, 20)), *limits))
@@ -303,16 +388,31 @@ class SpaceScene:
             return
         movement = tuple(movement)
         axes = np.clip(np.asarray(movement[:3], dtype=np.float64), -1, 1)
+        step = float(np.clip(dt, 0, 0.1))
+        if self.flight_profile == "elite":
+            previous = self.flight_speed
+            acceleration = float(axes[2]) * self.flight_acceleration
+            self.flight_speed = float(np.clip(previous + acceleration * step,
+                                              0, self.flight_max_speed))
+            # Интегрируем разгон точно, включая часть кадра после достижения
+            # нуля или максимума. Боковые оси и ускоритель Elite не переносят.
+            changing = min(step, (self.flight_speed - previous) / acceleration) if acceleration else step
+            distance = ((previous + self.flight_speed) * .5 * changing
+                        + self.flight_speed * (step - changing))
+            self._flight_eye += self.forward * distance
+            return
         magnitude = np.linalg.norm(axes)
         if magnitude > 1:
             axes /= magnitude
         boost = float(np.clip(movement[3], 0.05, 20)) if len(movement) > 3 else 1.0
         right = np.array((cos(self._yaw), 0, sin(self._yaw)))
-        # Q/E и другие вертикальные клавиши движутся по мировой Y.
+        # Вертикальное перемещение Space/Shift остаётся вдоль мировой Y.
         displacement = right * axes[0] + np.array((0, axes[1], 0)) + self.forward * axes[2]
-        self._flight_eye += displacement * self.speed * boost * float(np.clip(dt, 0, 0.1))
+        self._flight_eye += displacement * self.speed * boost * step
 
     def _view_basis(self):
+        if self.camera_mode == "flight":
+            return tuple(axis.copy() for axis in self._flight_basis)
         forward = self.forward
         right = _unit(np.cross(forward, (0, 1, 0)))
         up = np.cross(right, forward)

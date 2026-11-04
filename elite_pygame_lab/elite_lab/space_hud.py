@@ -86,6 +86,65 @@ class SpaceHUD:
         hours, minutes = divmod(minutes, 60)
         return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
 
+    @staticmethod
+    def _flight_profile_name(scene):
+        return "Elite" if getattr(scene, "flight_profile", "modern") == "elite" else "3D"
+
+    @staticmethod
+    def _flight_speed_text(scene):
+        """Малая тяга видимо отличается от остановки, большие значения округлены."""
+        speed = getattr(scene, "flight_speed", 0)
+        if speed == 0:
+            value = "0"
+        elif speed < .1:
+            value = "<0,1"
+        elif speed < 5:
+            value = f"{speed:.1f}".replace(".", ",")
+        else:
+            value = f"{speed:.0f}"
+        return value + " ед/с"
+
+    @staticmethod
+    def _flight_hints(scene):
+        """Обе схемы доступны без мыши; единицы скорости относятся к сцене."""
+        if getattr(scene, "flight_profile", "modern") == "elite":
+            controls = ("← / →  крен", "↑ / ↓  нос вверх / вниз", "W / S  скорость + / −",
+                        "Отпустите W/S — скорость сохранится", "Мышь  крен / тангаж")
+        else:
+            controls = ("W / S  вперёд / назад", "A / D  стрейф", "Пробел / Shift  вверх / вниз",
+                        "Q / E  крен", "Стрелки / мышь  взгляд")
+        return controls + ("Esc  курсор · щелчок  захват",)
+
+    def _hint_rows(self, hints, width, font=None):
+        """Переносим команды целиком, а слишком длинную подсказку — по словам."""
+        font = font or self.mono
+        gap = round(18*self.s)
+        rows, row, used = [], [], 0
+        for hint in hints:
+            fragments, fragment = [], ""
+            for word in hint.split():
+                candidate = (fragment + " " + word).strip()
+                if fragment and font.size(candidate)[0] > width:
+                    fragments.append(fragment)
+                    fragment = word
+                else:
+                    fragment = candidate
+            fragments.append(fragment)
+            # Сохраняем двойной пробел между клавишей и назначением, если перенос не нужен.
+            if len(fragments) == 1 and font.size(hint)[0] <= width:
+                fragments = [hint]
+            for fragment in fragments:
+                tw = font.size(fragment)[0]
+                if row and used + gap + tw > width:
+                    rows.append(row)
+                    row, used = [], 0
+                x = used + (gap if row else 0)
+                row.append((fragment, x))
+                used = x + tw
+        if row:
+            rows.append(row)
+        return rows
+
     def _paint_flyby(self, scene):
         """Время, подпись корпуса и компактные команды у края кадра."""
         w, h = self.size
@@ -122,23 +181,23 @@ class SpaceHUD:
         accent = (235, 245, 255) if zx else _GOLD
         label("E L I T E", pad, 18*s, self.mono, accent)
         mode_title = "СВОБОДНЫЙ ПОЛЁТ" if flying else "АВТОПРОЛЁТ"
-        caption = (f"{mode_title}     H  интерфейс  /  Esc  выход" if w > 580*s else
-                   "H интерфейс / Esc выход")
+        escape = "курсор" if flying else "выход"
+        caption = (f"{mode_title}     H  интерфейс  /  Esc  {escape}" if w > 580*s else
+                   f"H интерфейс / Esc {escape}")
         label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
         paused = scene.paused
         if flying:
-            label(f"РУЧНОЙ ПОЛЁТ · маршрут на паузе · {self._flyby_clock(scene.elapsed)}",
+            status = f"РУЧНОЙ ПОЛЁТ · маршрут на паузе · {self._flyby_clock(scene.elapsed)}"
+            if getattr(scene, "flight_profile", "modern") == "elite":
+                status += " · " + self._flight_speed_text(scene)
+            label(status,
                   pad, 39*s, self.mono, accent, width=w-2*pad)
-            x, y = pad, 59*s
-            for hint in ("WASD  движение", "Q / E  вниз / вверх", "Shift  быстрее",
-                         "ПКМ  взгляд", "Колесо  вперёд / назад"):
-                width = self.mono.size(hint)[0]
-                if x > pad and x + width > w - pad:
-                    x, y = pad, y + 19*s
-                label(hint, x, y, self.mono, _MUTED, width=w-2*pad)
-                x += width + 16*s
+            for index, row in enumerate(self._hint_rows(self._flight_hints(scene), w-2*pad)):
+                for hint, x in row:
+                    label(hint, pad+x, (59+index*19)*s, self.mono, _MUTED)
         else:
-            label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
+            label("ПКМ + тянуть / Shift + стрелки  взгляд · R  по курсу",
+                  pad, 39*s, self.mono, _MUTED, width=w-2*pad)
             state = "ПАУЗА" if paused else "ПРОЛЁТ"
             label(f"{self._flyby_clock(scene.elapsed)} · {state} · держать ← / →  4×",
                   pad, 59*s, self.mono, accent if paused else _MUTED, width=w-2*pad)
@@ -151,7 +210,9 @@ class SpaceHUD:
         auto = "вкл" if scene.auto_sources else "выкл"
         wide = w > 760*s
         flight_button = ("toggle_flight", "F", "К автопролёту" if flying else "Свободный полёт")
-        transport = (flight_button,) if flying else (
+        profile = self._flight_profile_name(scene)
+        profile_button = ("cycle_flight_profile", "C", f"Схема · {profile}" if wide else profile)
+        transport = (flight_button, profile_button) if flying else (
             flight_button, ("toggle_pause", "Пробел", "Продолжить" if paused else "Пауза"),
             ("scrub_back", "←", "−1 с"), ("scrub_forward", "→", "+1 с"))
         models = (("cycle_source", "M", f"Модели · {source}" if wide else source),
@@ -198,10 +259,10 @@ class SpaceHUD:
                 active = ((action == "menu_credits" and self.menu == "credits") or
                           (action == "toggle_pause" and paused))
                 pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
-                if action in ("cycle_source", "toggle_flight"):
+                if action in ("cycle_source", "toggle_flight", "cycle_flight_profile"):
                     pygame.draw.line(surf, accent, rect.topleft, rect.bottomleft, max(1, round(2*s)))
                 label(caption, x + 10*s, y + 4*s, font,
-                      color=accent if active or action in ("cycle_source", "toggle_flight") else _MUTED,
+                      color=accent if active or action in ("cycle_source", "toggle_flight", "cycle_flight_profile") else _MUTED,
                       width=width-round(20*s))
 
         title_y = controls_y - round(38*s)
@@ -331,7 +392,17 @@ class SpaceHUD:
                         cx, cy = ox + a*r0, oy + b*r0
                         pygame.draw.lines(surf, _GOLD, False, ((cx - a*5*s, cy), (cx, cy), (cx, cy - b*5*s)))
 
-        by = h - round(114*s)
+        hints = {
+            "overview": ("Щелчок  осмотр", "Стрелки  выбор", "Тянуть  поворот", "Колесо  масштаб",
+                         "Shift + стрелки  взгляд", "O  исходный вид", "H  интерфейс"),
+            "inspect": ("Стрелки  объекты", "Тянуть  облёт", "Колесо  масштаб", "Shift + стрелки  взгляд",
+                        "O  вся карта", "H  интерфейс"),
+            "flight": self._flight_hints(scene) + ("O  карта", "H  интерфейс"),
+        }[mode]
+        hint_font = self.mono if mode == "flight" else self.text
+        hint_rows = self._hint_rows(hints, w-2*pad, hint_font)
+        hints_y = h - round((37 + (len(hint_rows)-1)*20)*s)
+        by = hints_y - round(77*s)
         if mode == "overview":
             eyebrow = f"КАРТА  01     /     ОБЪЕКТОВ  {len(scene.objects)}"
             headline = "Орбитальный каталог"
@@ -339,7 +410,9 @@ class SpaceHUD:
             eyebrow = f"ОБЪЕКТ  {ident:02d}     /     {_CLASSES[ident]}"
             headline = name.split(" · ")[0]
         else:
-            eyebrow = "КАРТА  01     /     РУЧНОЕ УПРАВЛЕНИЕ"
+            eyebrow = "РУЧНОЕ УПРАВЛЕНИЕ · " + self._flight_profile_name(scene)
+            if getattr(scene, "flight_profile", "modern") == "elite":
+                eyebrow += " · " + self._flight_speed_text(scene)
             headline = "Свободный полёт"
         label(eyebrow, pad, by, self.mono, _GOLD)
         label(headline, pad - s, by + 18*s, self.title)
@@ -355,19 +428,10 @@ class SpaceHUD:
             label(tag, w - pad, by + 7*s, self.mono, _MUTED, right=True)
             label(detail, w - pad, by + 29*s, color=_INK, right=True)
 
-        hints = {
-            "overview": ("Щелчок  осмотр", "Стрелки  выбор", "Тянуть  поворот", "Колесо  масштаб", "H  интерфейс"),
-            "inspect": ("Стрелки  объекты", "Тянуть  облёт", "Колесо  масштаб", "O  вся карта", "H  интерфейс"),
-            "flight": ("WASD  движение", "Q / E  вниз / вверх", "Тянуть  взгляд", "Shift  ускорение", "O  карта", "H  интерфейс"),
-        }[mode]
-        y = h - round(37*s)
-        pygame.draw.line(surf, (91, 113, 122, 125), (pad, y - 7*s), (w - pad, y - 7*s))
-        x = pad
-        for hint in hints:
-            if x + self.text.size(hint)[0] > w - pad:
-                break
-            x += label(hint, x, y, color=_MUTED)
-            x += 23*s
+        pygame.draw.line(surf, (91, 113, 122, 125), (pad, hints_y - 7*s), (w - pad, hints_y - 7*s))
+        for index, row in enumerate(hint_rows):
+            for hint, x in row:
+                label(hint, pad+x, hints_y+index*20*s, hint_font, _MUTED)
         self._source_menu(surf, scene, ship, label, pad, int(61*s))
         return surf
 
@@ -380,14 +444,19 @@ class SpaceHUD:
         buttons = (("models", "M", "Модели", SOURCE_NAMES[scene.model_source]),
                    ("textures", "T", "Текстуры", TEXTURE_NAMES[scene.texture_source]),
                    ("credits", "I", "", "Авторы"))
+        if scene.camera_mode == "flight":
+            buttons += (("flight_profile", "C", "Схема", self._flight_profile_name(scene)),)
         for key, hotkey, title, value in buttons:
             caption = f"{hotkey}  {title} · {value}" if title and w >= 740*s else f"{hotkey}  {value}"
-            width = self.text.size(caption)[0] + round((19 if key == "credits" else 32)*s)
+            width = min(w-2*pad, self.text.size(caption)[0] + round((32 if key in ("models", "textures") else 19)*s))
+            if x > pad and x + width > w - pad:
+                x, y = pad, y + round(34*s)
             rect = pygame.Rect(x, y, width, round(29*s))
-            self.options["menu_" + key] = rect
+            action = "cycle_flight_profile" if key == "flight_profile" else "menu_" + key
+            self.options[action] = rect
             pygame.draw.rect(surf, (12, 23, 31, 225), rect, border_radius=round(3*s))
-            label(caption, x+9*s, y+3*s, color=_GOLD if self.menu == key else _INK)
-            if key != "credits":
+            label(caption, x+9*s, y+3*s, color=_GOLD if self.menu == key or key == "flight_profile" else _INK)
+            if key in ("models", "textures"):
                 tip = rect.right - 11*s
                 pygame.draw.lines(surf, _MUTED, False, ((tip-3*s, y+12*s), (tip, y+15*s), (tip+3*s, y+12*s)))
             x = rect.right + round(5*s)
@@ -435,9 +504,12 @@ class SpaceHUD:
         # Секунды и паузу обновляем независимо от выбора корпуса; карту — при смене проекции.
         is_flyby = getattr(scene, "is_flyby", False)
         playback = (scene.paused, int(scene.elapsed)) if is_flyby else None
+        profile = getattr(scene, "flight_profile", "modern")
+        flight = ((profile, self._flight_speed_text(scene) if profile == "elite" else None)
+                  if scene.camera_mode == "flight" else None)
         key = (size, pixel_ratio, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
-               playback,
+               playback, flight,
                vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)

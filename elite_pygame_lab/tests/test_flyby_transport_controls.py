@@ -140,7 +140,7 @@ class FlybyTransportControlsTest(unittest.TestCase):
         self.assertTrue(self.scene.paused)
         self.assertEqual(self.scene.elapsed, 24)
 
-    def test_free_flight_stops_transport_and_source_clock_but_keeps_animation(self):
+    def test_free_flight_keys_move_camera_without_transport_or_source_clock(self):
         for paused in (False, True):
             with self.subTest(paused=paused):
                 self.restart(paused=paused)
@@ -155,7 +155,7 @@ class FlybyTransportControlsTest(unittest.TestCase):
                 self.controls.update(9)
                 self.assertEqual((self.scene.elapsed, self.scene.model_source, self.scene.paused),
                                  (elapsed, source, paused))
-                np.testing.assert_array_equal(self.scene.eye, eye)
+                self.assertFalse(np.allclose(self.scene.eye, eye))
                 self.assertFalse(np.allclose(self.scene.objects[0].matrix, matrix))
                 self.key(pygame.K_f)
                 resumed = self.scene.elapsed

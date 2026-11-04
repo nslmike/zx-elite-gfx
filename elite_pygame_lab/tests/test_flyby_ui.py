@@ -93,10 +93,17 @@ class FlybyCLITest(unittest.TestCase):
 @unittest.skipIf(FlybyControls is None, "Нужны зависимости requirements-space.txt")
 class FlybyControlsTest(unittest.TestCase):
     def setUp(self):
-        self.scene = Mock(camera_mode="flyby")
+        self.scene = Mock(camera_mode="flyby", flight_profile="modern")
         self.scene.toggle_flight.side_effect = self.toggle_flight
         self.hud = SimpleNamespace(menu=None, tab_at=Mock(return_value=None))
         self.controls = FlybyControls(self.scene, self.hud, True)
+        for target, value in (("pygame.display.get_init", True),
+                              ("pygame.event.get_grab", False),
+                              ("pygame.mouse.get_visible", True),
+                              ("pygame.event.set_grab", None),
+                              ("pygame.mouse.set_visible", None),
+                              ("pygame.mouse.get_rel", (0, 0))):
+            self.enterContext(patch(target, return_value=value))
 
     def toggle_flight(self):
         self.scene.camera_mode = "flight" if self.scene.camera_mode == "flyby" else "flyby"
@@ -110,6 +117,8 @@ class FlybyControlsTest(unittest.TestCase):
         return result
 
     def click(self, action):
+        if self.scene.camera_mode == "flight" and self.controls.looking:
+            self.key(pygame.K_ESCAPE)
         self.hud.tab_at.return_value = action
         for kind in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
             self.event(kind, button=1, pos=(20, 15))
@@ -150,10 +159,10 @@ class FlybyControlsTest(unittest.TestCase):
         self.assertEqual(self.scene.toggle_flight.call_count, 2)
         self.assertEqual(self.scene.camera_mode, "flyby")
 
-    def test_free_flight_uses_shared_movement_axes_and_shift_boost(self):
+    def test_free_flight_uses_shared_translation_axes_without_shift_boost(self):
         self.key(pygame.K_f)
-        for keys, movement in (((pygame.K_d, pygame.K_e, pygame.K_w), (1, 1, 1, 1)),
-                               ((pygame.K_a, pygame.K_q, pygame.K_s, pygame.K_LSHIFT), (-1, -1, -1, 4))):
+        for keys, movement in (((pygame.K_d, pygame.K_SPACE, pygame.K_w), (1, 1, 1, 1)),
+                               ((pygame.K_a, pygame.K_s, pygame.K_LSHIFT), (-1, -1, -1, 1))):
             with self.subTest(keys=keys):
                 for key in keys:
                     self.event(pygame.KEYDOWN, key=key)
@@ -209,11 +218,12 @@ class FlybyControlsTest(unittest.TestCase):
         self.event(pygame.KEYDOWN, key=pygame.K_RIGHT)
         self.event(pygame.MOUSEBUTTONDOWN, button=3, pos=(498, 180))
         self.key(pygame.K_f)
-        self.assertFalse(self.controls.looking)
-        self.assertIsNone(self.controls._mouse_state)
+        self.assertTrue(self.controls.looking)
+        self.assertIsNotNone(self.controls._mouse_state)
         self.assertFalse(self.controls._held_keys)
         self.event(pygame.MOUSEMOTION, pos=(499, 180), rel=(40, -15))
-        self.scene.look_drag.assert_not_called()
+        self.scene.look_drag.assert_called_once_with(40, -15)
+        self.scene.look_drag.reset_mock()
         self.event(pygame.KEYDOWN, key=pygame.K_w)
         self.event(pygame.MOUSEBUTTONDOWN, button=3, pos=(498, 180))
         self.event(pygame.MOUSEMOTION, pos=(499, 180), rel=(40, -15))
@@ -291,6 +301,8 @@ class FlybyHUDTest(unittest.TestCase):
                             actions = {"toggle_flight", "cycle_source", "cycle_textures", "menu_credits"}
                             if mode == "flyby":
                                 actions |= {"toggle_pause", "scrub_back", "scrub_forward", "toggle_auto"}
+                            else:
+                                actions.add("cycle_flight_profile")
                             self.assertEqual(set(hud.options), actions)
                             self.assertFalse(hud.tabs or hud.markers)
                             for action, rect in hud.options.items():
@@ -368,8 +380,9 @@ class FlybyHUDTest(unittest.TestCase):
                 self.assertEqual(paint.call_count, before + 1)
                 labels = self.labels(hud)
                 for expected in ("РУЧНОЙ ПОЛЁТ · маршрут на паузе · 01:12", "F  К автопролёту",
-                                 "WASD  движение", "Q / E  вниз / вверх", "Shift  быстрее",
-                                 "ПКМ  взгляд", "Колесо  вперёд / назад"):
+                                 "C  Схема · 3D", "W / S  вперёд / назад", "A / D  стрейф",
+                                 "Пробел / Shift  вверх / вниз", "Q / E  крен",
+                                 "Стрелки / мышь  взгляд", "Esc  курсор · щелчок  захват"):
                     self.assertIn(expected, labels)
                 self.assertTrue(any(label.startswith("Ближайший объект · ") for label in labels))
                 self.assertFalse(any(label.startswith(("A  ", "Пробел  ")) or "держать ← / →" in label
@@ -392,7 +405,8 @@ class FlybyHUDTest(unittest.TestCase):
         with patch.object(hud, "_paint_flyby", side_effect=AssertionError("HUD показа в атласе")):
             hud.draw(scene, hud.size, None, None)
         self.assertEqual(set(hud.tabs), {"overview", "inspect", "flight"})
-        self.assertEqual(set(hud.options), {"menu_models", "menu_textures", "menu_credits"})
+        self.assertEqual(set(hud.options), {"menu_models", "menu_textures", "menu_credits",
+                                            "cycle_flight_profile"})
 
 
 if __name__ == "__main__":

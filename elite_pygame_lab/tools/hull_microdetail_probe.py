@@ -14,7 +14,7 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import json
-from math import asin, atan2, cos, isfinite, radians, sin, tan
+from math import cos, isfinite, radians, sin, tan
 import os
 from pathlib import Path
 import sys
@@ -98,10 +98,9 @@ class ProbeFlightScene(space_viewer.SpaceScene):
         target, eye, self.fov, _ = probe_cameras()["close"]
         axes = obj.matrix[:3, :3]
         forward = unit(axes @ (target - eye))
-        self._yaw = atan2(forward[0], -forward[2])
-        self._pitch = asin(float(np.clip(forward[1], -1.0, 1.0)))
-        self._flight_eye = axes @ eye + obj.position
-        self.camera_mode = "flight"
+        right = unit(np.cross(forward, (0, 1, 0)))
+        self.set_flight_pose(axes @ eye + obj.position,
+                             (right, np.cross(right, forward), forward))
         self._update_probe_speed()
 
     def _update_probe_speed(self):
@@ -149,30 +148,36 @@ class ProbeFlightRenderer(space_viewer.SpaceRenderer):
 class ProbeFlightControls(space_viewer.SpaceControls):
     def __init__(self, scene, hud, show_hud):
         super().__init__(scene, hud, show_hud)
+        if scene.camera_mode == "flight":
+            self._start_look()
         self._caption()
 
     def _caption(self):
-        state = "B: пробный слой" if self.scene.microdetail_enabled else "A: штатная обшивка"
-        pygame.display.set_caption(f"Elite · Проба обшивки · {state} · B: переключить · R: к борту · O: кольцо")
+        state = "B — пробный слой" if self.scene.microdetail_enabled else "A — штатная обшивка"
+        pygame.display.set_caption(f"Elite · Проба обшивки · {state} · B — переключить · R — к борту · C — схема · O — кольцо")
 
-    def event(self, e, logical_size, drawable_size):
-        if e.type == pygame.KEYDOWN and e.key == pygame.K_b:
+    def _key_down(self, e):
+        # Общий event ведёт удержания, повторы, KEYUP и потерю фокуса.
+        if e.key == pygame.K_b:
             self.scene.microdetail_enabled = not self.scene.microdetail_enabled
             self._caption()
             return True
-        if e.type == pygame.KEYDOWN and e.key == pygame.K_r:
+        if e.key == pygame.K_r:
+            self._release_motion()
             self.scene.reset_probe()
             self.hud.menu = None
+            self._start_look()
             return True
-        return super().event(e, logical_size, drawable_size)
+        return super()._key_down(e)
 
 
 def run_flight():
     """Ввод, resize, рендер, переключение наборов и cleanup — общий run_space()."""
-    print("Проба обшивки: старт A — штатная обшивка; B — пробный слой вкл/выкл; "
-          "R — к борту Cobra09, сохраняя выбор слоя; мышь с зажатой кнопкой — обзор; "
-          "WASD/QE — полёт; Shift — быстрее; колесо — вперёд/назад; O — кольцо; "
-          "Enter — осмотр; F — свободный полёт; Esc — кольцо/выход.", flush=True)
+    print("Проба обшивки начинается у Cobra09 со штатным слоем A. "
+          "B переключает пробный слой, R возвращает к борту с теми же слоем и схемой. "
+          "C выбирает 3D или Elite. Управление показано на экране. "
+          "Мышь сразу захвачена, Esc освобождает курсор. "
+          "O возвращает кольцо, Esc на кольце закрывает окно.", flush=True)
     with patch.object(space_viewer, "SpaceScene", ProbeFlightScene), \
          patch.object(space_viewer, "SpaceRenderer", ProbeFlightRenderer), \
          patch.object(space_viewer, "SpaceControls", ProbeFlightControls):
