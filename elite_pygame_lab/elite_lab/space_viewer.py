@@ -477,12 +477,16 @@ class SpaceControls:
 
 
 class FlybyControls(SpaceControls):
-    """Маршрут автоматический; ПКМ меняет только относительный взгляд."""
+    """Пауза и перемотка маршрута; ПКМ меняет только относительный взгляд."""
+
+    _scrub_delay = .25
+    _scrub_speed = 4.0
 
     def __init__(self, scene, hud, show_hud):
         super().__init__(scene, hud, show_hud)
         self.looking = False
         self._mouse_state = None
+        self._held_keys = {}
 
     def _start_look(self):
         if self.looking:
@@ -497,14 +501,18 @@ class FlybyControls(SpaceControls):
         pygame.mouse.set_visible(False)
         pygame.mouse.get_rel()
 
-    def release(self):
-        """Отпустить захват при ПКМ, потере фокуса и любом выходе из цикла."""
+    def _stop_look(self):
         self.looking = False
         if self._mouse_state is not None:
             grabbed, visible = self._mouse_state
             self._mouse_state = None
             pygame.event.set_grab(grabbed)
             pygame.mouse.set_visible(visible)
+
+    def release(self):
+        """Снять захват и удержания при потере фокуса и выходе из цикла."""
+        self._stop_look()
+        self._held_keys.clear()
 
     def _mode(self, action):
         if action == "menu_credits":
@@ -517,6 +525,12 @@ class FlybyControls(SpaceControls):
             self.scene.cycle_textures()
         elif action == "toggle_auto":
             self.scene.toggle_auto_sources()
+        elif action == "toggle_pause":
+            self.scene.toggle_pause()
+        elif action == "scrub_back":
+            self.scene.scrub(-1.0)
+        elif action == "scrub_forward":
+            self.scene.scrub(1.0)
 
     def event(self, e, logical_size, drawable_size):
         if e.type == pygame.QUIT:
@@ -527,7 +541,15 @@ class FlybyControls(SpaceControls):
             self.press = None
             self.dragging = False
         elif e.type == pygame.KEYDOWN:
-            if e.key == pygame.K_ESCAPE:
+            if e.key in (pygame.K_SPACE, pygame.K_LEFT, pygame.K_RIGHT):
+                # Удержание считаем по dt, а не по зависящему от ОС autorepeat.
+                # После потери фокуса запоздалый SDL repeat не начинает его снова.
+                if e.key in self._held_keys or getattr(e, "repeat", False):
+                    return True
+                self._held_keys[e.key] = 0.0
+                self._mode({pygame.K_SPACE: "toggle_pause", pygame.K_LEFT: "scrub_back",
+                            pygame.K_RIGHT: "scrub_forward"}[e.key])
+            elif e.key == pygame.K_ESCAPE:
                 if self.hud.menu:
                     self.hud.menu = None
                 else:
@@ -546,10 +568,12 @@ class FlybyControls(SpaceControls):
                           pygame.K_a: "toggle_auto"}.get(e.key)
                 if action:
                     self._mode(action)
+        elif e.type == pygame.KEYUP:
+            self._held_keys.pop(e.key, None)
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 3:
             self._start_look()
         elif e.type == pygame.MOUSEBUTTONUP and e.button == 3:
-            self.release()
+            self._stop_look()
         elif e.type == pygame.MOUSEMOTION and self.looking:
             self.scene.look_drag(*e.rel)
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
@@ -569,7 +593,36 @@ class FlybyControls(SpaceControls):
         return True
 
     def update(self, seconds):
-        self.scene.update(seconds)
+        left = self._held_keys.get(pygame.K_LEFT)
+        right = self._held_keys.get(pygame.K_RIGHT)
+        if left is None and right is None:
+            self.scene.update(seconds)
+            return
+        seconds = float(seconds)
+        if not 0 <= seconds < float("inf"):
+            # Сцена сохраняет общую проверку конечного dt и обработку dt < 0.
+            self.scene.update(seconds, advance_route=False)
+            return
+        if left is not None:
+            self._held_keys[pygame.K_LEFT] = left + seconds
+        if right is not None:
+            self._held_keys[pygame.K_RIGHT] = right + seconds
+        if left is not None and right is not None:
+            # Обе стрелки останавливают маршрут, не меняя явную паузу Space.
+            self.scene.update(seconds, advance_route=False)
+            return
+        key, held = (pygame.K_LEFT, left) if left is not None else (pygame.K_RIGHT, right)
+        stopped = min(seconds, max(0.0, self._scrub_delay - held))
+        active = seconds - stopped
+        if active > 0:
+            direction = 1 if key == pygame.K_RIGHT else -1
+            moved = self.scene.scrub(direction * self._scrub_speed * active)
+            # На упоре в начало оставшееся реальное время идёт во вращения.
+            stopped += max(0.0, active - abs(moved) / self._scrub_speed)
+        if stopped > 0:
+            # Сам scrub уже сдвинул фазы на пройденное время: не прибавляем
+            # к активной перемотке ещё и обычный ход вращений этого кадра.
+            self.scene.update(stopped, advance_route=False)
 
 
 def _save(frame, size, path):

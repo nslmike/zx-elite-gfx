@@ -169,7 +169,7 @@ class FlybyControlsTest(unittest.TestCase):
 
 @unittest.skipIf(SpaceHUD is None, "Нужны зависимости requirements-space.txt")
 class FlybyHUDTest(unittest.TestCase):
-    def test_all_four_actions_remain_inside_narrow_and_normal_frames(self):
+    def test_all_seven_actions_remain_inside_narrow_and_normal_frames(self):
         pygame.font.init()
         try:
             hud = SpaceHUD.__new__(SpaceHUD)
@@ -180,20 +180,84 @@ class FlybyHUDTest(unittest.TestCase):
                                    source_title="ZX Spectrum Elite", author="Ian Bell, David Braben",
                                    license="Отдельная лицензия на каркас не указана")
             scene = SimpleNamespace(ships=(ship,), selected=0, model_source="griff", texture_source="author",
-                                    auto_sources=True, empty_slot=False)
-            for size in ((320, 600), (600, 900), (1360, 820)):
-                with self.subTest(size=size):
-                    hud._resize(size)
-                    surface = hud._paint_flyby(scene)
-                    bounds = surface.get_rect()
-                    self.assertEqual(set(hud.options), {"cycle_source", "cycle_textures", "toggle_auto", "menu_credits"})
-                    self.assertFalse(hud.tabs or hud.markers)
-                    for action, rect in hud.options.items():
-                        self.assertTrue(bounds.contains(rect))
-                        self.assertEqual(hud.tab_at(rect.center), action)
-                    hud.menu = "credits"
+                                    auto_sources=True, empty_slot=False, paused=False, elapsed=0, duration=126)
+            for size in ((320, 240), (320, 600), (640, 360), (600, 900), (1360, 820)):
+                for source in ("zx", "griff"):
+                    for paused in (False, True):
+                        with self.subTest(size=size, source=source, paused=paused):
+                            hud._resize(size)
+                            scene.model_source, scene.paused = source, paused
+                            surface = hud._paint_flyby(scene)
+                            bounds = surface.get_rect()
+                            self.assertEqual(set(hud.options), {"toggle_pause", "scrub_back", "scrub_forward",
+                                                               "cycle_source", "cycle_textures", "toggle_auto", "menu_credits"})
+                            self.assertFalse(hud.tabs or hud.markers)
+                            for action, rect in hud.options.items():
+                                self.assertTrue(bounds.contains(rect))
+                                self.assertEqual(hud.tab_at(rect.center), action)
+                                self.assertFalse(any(rect.colliderect(other) for key, other in hud.options.items()
+                                                     if key != action))
+                            if size == (1360, 820):
+                                self.assertEqual(len({rect.top for rect in hud.options.values()}), 1)
+                            elif size[0] == 320:
+                                self.assertLess(hud.options["toggle_pause"].top, hud.options["cycle_source"].top)
+                            hud.menu = "credits"
+                            hud._paint_flyby(scene)
+                            hud.menu = None
+        finally:
+            pygame.font.quit()
+
+    def test_absolute_time_and_pause_labels_stay_explicit_after_a_complete_loop(self):
+        pygame.font.init()
+        try:
+            hud = SpaceHUD.__new__(SpaceHUD)
+            hud.texture = None
+            hud.ctx = SimpleNamespace(texture=lambda *_: SimpleNamespace(filter=None, release=lambda: None))
+            hud.tabs, hud.markers, hud.options, hud.menu = {}, {}, {}, None
+            hud._resize((320, 600))
+            hud.mono = Mock(wraps=hud.mono)
+            hud.text = Mock(wraps=hud.text)
+            scene = SimpleNamespace(ships=(), selected=0, model_source="zx", texture_source="author",
+                                    auto_sources=False, empty_slot=True, paused=False, elapsed=125.9, duration=126)
+            for elapsed, expected in ((125.9, "02:05"), (126, "02:06"), (127, "02:07"), (3601, "1:00:01")):
+                with self.subTest(elapsed=elapsed):
+                    hud.mono.render.reset_mock()
+                    scene.elapsed = elapsed
                     hud._paint_flyby(scene)
-                    hud.menu = None
+                    labels = [call.args[0] for call in hud.mono.render.call_args_list]
+                    self.assertIn(f"{expected} · ПРОЛЁТ · держать ← / →  4×", labels)
+                    self.assertIn("H интерфейс / Esc выход", labels)
+            hud.text.render.reset_mock()
+            scene.paused = True
+            hud._paint_flyby(scene)
+            self.assertIn("1:00:01 · ПАУЗА · держать ← / →  4×",
+                          [call.args[0] for call in hud.mono.render.call_args_list])
+            self.assertIn("Пробел  Продолжить", [call.args[0] for call in hud.text.render.call_args_list])
+        finally:
+            pygame.font.quit()
+
+    def test_hud_refreshes_on_time_and_pause_changes_without_redrawing_each_frame(self):
+        pygame.font.init()
+        try:
+            hud = SpaceHUD.__new__(SpaceHUD)
+            hud.texture = Mock()
+            hud.size = (640, 360)
+            hud.key, hud.menu = None, None
+            hud.ctx = SimpleNamespace(enable_only=Mock())
+            hud.quad = Mock()
+            hud._paint = Mock(return_value=pygame.Surface(hud.size, pygame.SRCALPHA))
+            scene = SimpleNamespace(camera_mode="flyby", selected=0, model_source="zx", texture_source="author",
+                                    auto_sources=False, empty_slot=True, paused=False, elapsed=125.1)
+            for elapsed, paused, paints in ((125.1, False, 1), (125.9, False, 1), (126, False, 2),
+                                             (126, True, 3), (126.9, True, 3), (127, True, 4)):
+                with self.subTest(elapsed=elapsed, paused=paused):
+                    scene.elapsed, scene.paused = elapsed, paused
+                    hud.draw(scene, hud.size, None, None)
+                    self.assertEqual(hud._paint.call_count, paints)
+            # У обычного атласа нет часов автопролёта и они ему не требуются.
+            scene.camera_mode = "inspect"
+            del scene.elapsed, scene.paused
+            hud.draw(scene, hud.size, None, None)
         finally:
             pygame.font.quit()
 
@@ -206,7 +270,7 @@ class FlybyHUDTest(unittest.TestCase):
             hud.tabs, hud.markers, hud.options, hud.menu = {}, {}, {}, "credits"
             hud._resize((600, 900))
             scene = SimpleNamespace(ships=(), selected=0, model_source="zx", texture_source="author",
-                                    auto_sources=False, empty_slot=True)
+                                    auto_sources=False, empty_slot=True, paused=False, elapsed=0, duration=126)
             # Пустое место не обращается к ships[selected] и не выдаёт его авторство.
             with patch.object(hud, "_flyby_credits", wraps=hud._flyby_credits) as credits:
                 hud._paint_flyby(scene)

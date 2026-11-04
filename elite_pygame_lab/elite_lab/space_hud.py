@@ -58,6 +58,8 @@ class SpaceHUD:
         mono = pygame.font.match_font("menlo,dejavusansmono,consolas")
         self.mono = pygame.font.Font(mono, round(12 * self.s))
         self.text = pygame.font.Font(sans, round(15 * self.s))
+        # Helvetica не содержит стрелок; подписи клавиш должны показывать их явно.
+        self.symbols = pygame.font.Font(mono, round(15 * self.s))
         self.title = pygame.font.Font(sans, round(37 * self.s))
         self.brand = pygame.font.Font(sans, round(23 * self.s))
         self.brand.set_bold(True)
@@ -75,8 +77,15 @@ class SpaceHUD:
     def marker_at(self, point):
         return next((index for index, rect in self.markers.items() if rect.collidepoint(point)), None)
 
+    @staticmethod
+    def _flyby_clock(elapsed):
+        """Абсолютное время: после полного круга счётчик не возвращается к нулю."""
+        minutes, seconds = divmod(max(0, int(elapsed)), 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
+
     def _paint_flyby(self, scene):
-        """Только подпись текущего корпуса и четыре команды у края кадра."""
+        """Время, подпись корпуса и компактные команды у края кадра."""
         w, h = self.size
         s = self.s
         pad = round(28 * s)
@@ -100,7 +109,7 @@ class SpaceHUD:
             surf.blit(font.render(text, True, color), (round(x), round(y)))
 
         # Нижняя полоса не занимает композиционный центр, верхняя — едва видна.
-        for end, depth, opacity in ((False, 58, 110), (True, 155, 200)):
+        for end, depth, opacity in ((False, 80, 110), (True, 185, 200)):
             rows = round(depth * s)
             for i in range(min(h, rows)):
                 y = h - i - 1 if end else i
@@ -109,10 +118,14 @@ class SpaceHUD:
         zx = scene.model_source == "zx"
         accent = (235, 245, 255) if zx else _GOLD
         label("E L I T E", pad, 18*s, self.mono, accent)
-        if w > 580*s:
-            caption = "АВТОПРОЛЁТ     H  интерфейс  /  Esc  выход"
-            label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
+        caption = ("АВТОПРОЛЁТ     H  интерфейс  /  Esc  выход" if w > 580*s else
+                   "H интерфейс / Esc выход")
+        label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
         label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
+        paused = scene.paused
+        state = "ПАУЗА" if paused else "ПРОЛЁТ"
+        label(f"{self._flyby_clock(scene.elapsed)} · {state} · держать ← / →  4×",
+              pad, 59*s, self.mono, accent if paused else _MUTED, width=w-2*pad)
 
         empty = bool(getattr(scene, "empty_slot", False))
         ship = None if empty else scene.ships[scene.selected]
@@ -121,34 +134,54 @@ class SpaceHUD:
         textures = "Родные" if authored else "Наша обшивка"
         auto = "вкл" if scene.auto_sources else "выкл"
         wide = w > 760*s
-        buttons = (("cycle_source", "M", f"Модели · {source}" if wide else source),
+        groups = ((("toggle_pause", "Пробел", "Продолжить" if paused else "Пауза"),
+                   ("scrub_back", "←", "−1 с"), ("scrub_forward", "→", "+1 с")),
+                  (("cycle_source", "M", f"Модели · {source}" if wide else source),
                    ("cycle_textures", "T", "Каркас · без текстур" if zx else
                     (f"Текстуры · {textures}" if wide else textures)),
                    ("toggle_auto", "A", f"Авто · {auto}"),
-                   ("menu_credits", "I", "Авторы"))
-        rows, row = [], []
-        x = pad
+                   ("menu_credits", "I", "Авторы")))
         gap, bh = round(6*s), round(28*s)
-        for action, key, text in buttons:
-            caption = f"{key}  {text}"
-            width = min(w - 2*pad, self.text.size(caption)[0] + round(20*s))
-            if row and x + width > w - pad:
-                rows.append(row)
-                row, x = [], pad
-            row.append((action, caption, x, width))
-            x += width + gap
-        rows.append(row)
+        group_gap = round(22*s)
+        prepared = []
+        for buttons in groups:
+            group = []
+            for action, key, text in buttons:
+                caption = f"{key}  {text}"
+                font = self.symbols if action in ("scrub_back", "scrub_forward") else self.text
+                width = min(w - 2*pad, font.size(caption)[0] + round(20*s))
+                group.append((action, caption, width, font))
+            prepared.append(group)
+        joined_width = sum(sum(item[2] for item in group) + (len(group)-1)*gap for group in prepared) + group_gap
+        single_row = joined_width <= w - 2*pad
+        rows, row, x = [], [], pad
+        for group_index, buttons in enumerate(prepared):
+            if group_index:
+                if single_row:
+                    x += group_gap - gap
+                else:
+                    rows.append(row)
+                    row, x = [], pad
+            for action, caption, width, font in buttons:
+                if row and x + width > w - pad:
+                    rows.append(row)
+                    row, x = [], pad
+                row.append((action, caption, x, width, font))
+                x += width + gap
+        if row:
+            rows.append(row)
         controls_y = h - round(22*s) - len(rows)*bh - (len(rows)-1)*gap
         for index, row in enumerate(rows):
             y = controls_y + index*(bh+gap)
-            for action, caption, x, width in row:
+            for action, caption, x, width, font in row:
                 rect = pygame.Rect(x, y, width, bh)
                 self.options[action] = rect
-                active = action == "menu_credits" and self.menu == "credits"
+                active = ((action == "menu_credits" and self.menu == "credits") or
+                          (action == "toggle_pause" and paused))
                 pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
                 if action == "cycle_source":
                     pygame.draw.line(surf, accent, rect.topleft, rect.bottomleft, max(1, round(2*s)))
-                label(caption, x + 10*s, y + 4*s, color=accent if active or action == "cycle_source" else _MUTED,
+                label(caption, x + 10*s, y + 4*s, font, color=accent if active or action == "cycle_source" else _MUTED,
                       width=width-round(20*s))
 
         title_y = controls_y - round(38*s)
@@ -377,9 +410,11 @@ class SpaceHUD:
     def draw(self, scene, size, hover, vp):
         if self.size != size:
             self._resize(size)
-        # Во время полёта меняется только 3D. Карту перерисовываем при смене проекции.
+        # Секунды и паузу обновляем независимо от выбора корпуса; карту — при смене проекции.
+        playback = (scene.paused, int(scene.elapsed)) if scene.camera_mode == "flyby" else None
         key = (size, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
+               playback,
                vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)

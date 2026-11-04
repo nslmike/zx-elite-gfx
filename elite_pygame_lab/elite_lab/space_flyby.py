@@ -1,12 +1,13 @@
 """Непрерывный постановочный облёт: отдельная сцена, без арифметики ZX.
 
 Каждый экспонат занимает шесть секунд, полный круг — 126 секунд. Камера
-и вращения вычисляются из абсолютного времени, поэтому ``seek(t)`` даёт
-тот же кадр, что и обновления от начала показа до t. Ручной выбор набора
-сбрасывает только таймер следующей смены, а не положение камеры.
+и вращения вычисляются из отдельных часов: на паузе экспонаты вращаются,
+но камера и таймер наборов стоят. ``seek(t)`` воспроизводит исходный запуск,
+а ``scrub(dt)`` перематывает текущий показ, сохраняя ручные настройки.
 """
 
 from math import cos, floor, isfinite, pi, sin, sqrt, tau
+from sys import float_info
 
 import numpy as np
 
@@ -82,11 +83,14 @@ class FlybyScene(SpaceScene):
         if not isfinite(interval) or interval < 0:
             raise ValueError("Интервал смены источников должен быть конечным и неотрицательным")
         self.elapsed = 0.0
+        self.animation_elapsed = 0.0
+        self.paused = False
         self.source_interval = interval
         self.auto_sources = interval > 0
         self._initial_source = model_source
         self._initial_interval = interval
         self._source_epoch = 0.0
+        self._source_anchor = model_source
         self._layouts = {}
         self._look_yaw = self._look_pitch = 0.0
         self._camera_up = np.array((0.0, 1.0, 0.0))
@@ -168,6 +172,7 @@ class FlybyScene(SpaceScene):
     def set_source(self, source):
         self._apply_source(source)
         self._source_epoch = self.elapsed
+        self._source_anchor = source
         self._animate()
 
     @property
@@ -188,17 +193,16 @@ class FlybyScene(SpaceScene):
         if self.auto_sources and self.source_interval == 0:
             self.source_interval = self.default_source_interval
         self._source_epoch = self.elapsed
+        self._source_anchor = self.model_source
         return self.auto_sources
 
     def _advance_sources(self):
         if not self.auto_sources or self.source_interval <= 0:
             return
         delta = self.elapsed - self._source_epoch
-        if delta <= 0:
-            return
         # Конечные время/интервал могут иметь бесконечное float-отношение.
         # Их точные двоичные дроби дают целое число смен без переполнения;
-        # большой integer дальше используется только по модулю числа наборов.
+        # divmod также даёт правильный шаг назад до ручного якоря.
         numerator, denominator = delta.as_integer_ratio()
         interval_numerator, interval_denominator = self.source_interval.as_integer_ratio()
         changes, remainder_numerator = divmod(numerator * interval_denominator,
@@ -209,32 +213,64 @@ class FlybyScene(SpaceScene):
         tolerance = min(1e-9, self.source_interval * 1e-9)
         if remainder > 0 and self.source_interval - remainder <= tolerance:
             changes += 1
-            remainder -= self.source_interval
-        if changes <= 0:
-            return
         options = self.source_options
-        source = options[(options.index(self.model_source) + changes) % len(options)]
+        source = options[(options.index(self._source_anchor) + changes) % len(options)]
         self._apply_source(source)
-        self._source_epoch = self.elapsed - remainder
 
     def seek(self, seconds):
         seconds = float(seconds)
         if not isfinite(seconds) or seconds < 0:
             raise ValueError("Время облёта должно быть конечным и неотрицательным")
         self.elapsed = seconds
+        self.animation_elapsed = seconds
         self.source_interval = self._initial_interval
         self.auto_sources = self.source_interval > 0
         self._source_epoch = 0.0
+        self._source_anchor = self._initial_source
         self._apply_source(self._initial_source)
         self._advance_sources()
         self._animate()
 
-    def update(self, dt, movement=(0.0, 0.0, 0.0)):
+    def toggle_pause(self):
+        """Остановить или продолжить маршрут; вращения и осмотр независимы."""
+        self.paused = not self.paused
+        return self.paused
+
+    @staticmethod
+    def _shift_time(seconds, delta):
+        # Даже сумма двух конечных float может переполниться. Часы остаются
+        # в представимом диапазоне, в том числе при предельной перемотке.
+        return min(float_info.max, max(0.0, seconds + delta))
+
+    def scrub(self, delta_seconds):
+        """Перемотать текущий показ и вернуть пройденное время маршрута.
+
+        Нижний предел — начало показа. Часы вращений сдвигаются ровно на
+        пройденный участок, сохраняя фазу, накопленную во время паузы.
+        Ручные наборы, текстуры, пауза и относительный взгляд сохраняются.
+        """
+        delta = float(delta_seconds)
+        if not isfinite(delta):
+            raise ValueError("Шаг перемотки должен быть конечным")
+        elapsed = self._shift_time(self.elapsed, delta)
+        moved = elapsed - self.elapsed
+        self.elapsed = elapsed
+        self.animation_elapsed = self._shift_time(self.animation_elapsed, moved)
+        self._advance_sources()
+        self._animate()
+        return moved
+
+    def update(self, dt, movement=(0.0, 0.0, 0.0), *, advance_route=True):
         # Сценарий не зависит от частоты кадров и свободных осей WASD.
         dt = float(dt)
         if not isfinite(dt):
             raise ValueError("Шаг времени должен быть конечным")
-        self.elapsed += max(0.0, dt)
+        dt = max(0.0, dt)
+        self.animation_elapsed = self._shift_time(self.animation_elapsed, dt)
+        # Удержание стрелок временно отдаёт маршрут командам scrub, не
+        # меняя выбранную пользователем паузу. Вращения идут и при этом.
+        if not self.paused and advance_route:
+            self.elapsed = self._shift_time(self.elapsed, dt)
         self._advance_sources()
         self._animate()
 
@@ -293,7 +329,7 @@ class FlybyScene(SpaceScene):
         objects = []
         for obj, dock in zip(self._base_objects, self._docks):
             index = obj.model_id
-            time = self.elapsed
+            time = self.animation_elapsed
             if dock is not None:
                 rotation = _rotation((0, 0, 1), time * (.20 if index == 0 else -.17))
             elif index in (3, 5, 6, 7):
