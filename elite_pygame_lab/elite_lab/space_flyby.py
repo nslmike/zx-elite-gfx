@@ -14,6 +14,12 @@ from .model import COBRA_ID, DODO_ID, MODELS
 from .space_scene import SpaceObject, SpaceScene, _unit
 
 
+def _smootherstep(value):
+    """Плавный переход 0…1 с нулевыми первой и второй производными на краях."""
+    value = min(1.0, max(0.0, value))
+    return value**3 * (10 - 15*value + 6*value**2)
+
+
 def _rotation(axis, angle):
     """Обычная матрица Родрига; локальная ось не зависит от ракурса камеры."""
     x, y, z = _unit(axis)
@@ -43,7 +49,7 @@ class FlybyScene(SpaceScene):
     """Плавный близкий проход по всем корпусам с независимыми вращениями.
 
     Основные двадцать мест сохраняются при любой смене геометрии. Гостевое
-    место Pioneer лежит между двумя станциями и чуть внутри кольца: когда
+    место Pioneer лежит между двумя станциями и чуть снаружи кольца: когда
     гостя нет, камера видит обе станции, не пустой промежуток каталога.
     ``seek`` воспроизводит исходный запуск, до ручных M/A; текстуры сохраняет.
     """
@@ -52,9 +58,22 @@ class FlybyScene(SpaceScene):
     slot_count = 21
     duration = seconds_per_ship * slot_count
     default_source_interval = 8.0
+    # Из внешней точки близкий экспонат и дальняя дуга должны помещаться
+    # одновременно. Поле зрения атласа SpaceScene остаётся прежним.
+    fov = 82.0
     _route = (*range(COBRA_ID, len(MODELS)), len(MODELS), *range(COBRA_ID))
     # Последняя точка замыкает круг. Два полушага освобождают гостевое место.
     _angle_knots = np.array((*range(11), 10.5, *range(11, 21)), dtype=float)
+    _exhibit_radii = np.array([
+        1.7 * sqrt(sqrt(max(v.x*v.x + v.y*v.y + v.z*v.z for v in model.vertices)) / 100.0)
+        for model in MODELS
+    ] + [3.0])
+
+    @staticmethod
+    def _ring_height(angle):
+        # Небольшая волна сохраняет узнаваемую окружность в плане, но разводит
+        # соседние силуэты дальней дуги по высоте вместо единственной полосы.
+        return .9 * sin(3 * angle + .5) + .5 * sin(2 * angle - .6)
 
     def __init__(self, selected=None, *, model_source="elite", texture_source="author",
                  catalog=None, source_interval=8.0):
@@ -82,8 +101,10 @@ class FlybyScene(SpaceScene):
             angle = (index - COBRA_ID) * tau / len(MODELS)
             if index == len(MODELS):
                 angle = (DODO_ID + .5 - COBRA_ID) * tau / len(MODELS)
-            radial = self.ring_radius - (4.7 if index >= len(MODELS) else 0.0)
+            # Даже описанные сферы гостя и двух станций разделены зазором.
+            radial = self.ring_radius + (4.1 if index >= len(MODELS) else 0.0)
             position = radial * np.array((sin(angle), 0.0, cos(angle)))
+            position[1] = self._ring_height(angle)
             side = .78
             if index in (0, DODO_ID):
                 side = .16
@@ -95,7 +116,9 @@ class FlybyScene(SpaceScene):
                 side = pi - .85  # Задние три четверти: сопла читаются в движении.
             elif index == len(MODELS):
                 side = 1.18
-            rotation = _rotation((0, 1, 0), angle + pi - side)
+            # Камера теперь снаружи: входы станций обращены к внешней орбите.
+            # Остальные ракурсы сохраняют передние/задние три четверти.
+            rotation = _rotation((0, 1, 0), angle - side)
             if index in (COBRA_ID, 10, 12):
                 rotation = rotation @ _rotation((1, 0, 0), -.14)
             if index == 3 and not ship.meshes:
@@ -103,15 +126,11 @@ class FlybyScene(SpaceScene):
                 source = np.array([(v.x, v.y, v.z) for v in MODELS[index].vertices], dtype=float)
                 _, _, axes = np.linalg.svd(source - source.mean(axis=0))
                 source_basis = np.column_stack((axes[0], np.cross(axes[2], axes[0]), axes[2]))
-                normal = _unit(-position)
+                normal = _unit((position[0], 0, position[2]))
                 right = _unit(np.cross((0, 1, 0), normal))
                 axis = _unit(right * .86 + np.array((0, .5, 0)))
                 rotation = np.column_stack((axis, np.cross(normal, axis), normal)) @ source_basis.T
-            model = MODELS[index] if index < len(MODELS) else None
-            source_radius = sqrt(max(v.x*v.x + v.y*v.y + v.z*v.z for v in model.vertices)) if model else 100.0
-            radius = 1.7 * sqrt(source_radius / 100.0)
-            if index == len(MODELS):
-                radius = 3.0  # Выставочный масштаб гостя, не масштаб исходного мира.
+            radius = self._exhibit_radii[index]
             matrix = np.eye(4)
             matrix[:3, :3] = rotation * radius
             matrix[:3, 3] = position
@@ -225,26 +244,43 @@ class FlybyScene(SpaceScene):
     def _animate(self):
         phase = self._start_slot + self.elapsed / self.seconds_per_ship
         angle = self._path_angle(phase)
-        height = 1.55 * cos(angle - .2) + .45 * sin(2 * angle + .4)
         slot = phase % self.slot_count
-        station_weight = min(1.0, max(0.0, min(slot - 9, 13 - slot)))
-        station_weight = station_weight**3 * (10 - 15*station_weight + 6*station_weight**2)
-        # Крупный корпус в центре встречи; между встречами остаётся виден
-        # соседний. Перед станциями дуга заранее и плавно отступает внутрь.
-        gap = ((5.15 + 1.7 * sin(pi * phase)**2) * (1 - station_weight)
-               + 8.3 * station_weight)
-        guest_weight = max(0.0, 1 - abs(slot - 11))
-        guest_weight = guest_weight**3 * (10 - 15*guest_weight + 6*guest_weight**2)
-        gap += 5.2 * guest_weight
-        camera_radius = self.ring_radius - gap
-        # Внутренняя траектория всегда оставляет до корпуса несколько радиусов.
-        camera_angle = angle - .065
+        station_weight = _smootherstep(min(slot - 9, 13 - slot))
+        # На переходе не удаляемся от обоих соседей. У двух станций плавно
+        # отступаем, чтобы крупный корпус оставлял вокруг себя дальнюю дугу.
+        index = int(floor(slot))
+        blend = _smootherstep(slot - index)
+        radius = ((1 - blend) * self._exhibit_radii[self._route[index]]
+                  + blend * self._exhibit_radii[self._route[(index + 1) % self.slot_count]])
+        gap = 1.7 + .85 * radius + 1.45 * station_weight
+        # Вторая половина маршрута проходит под грузом и астероидами.
+        # Плавно пересекаем плоскость лишь на двух коротких участках; у
+        # станций и в начале сохраняем верхний ракурс с читаемым входом.
+        descent = _smootherstep(slot - 14.5)
+        ascent = _smootherstep(19.5 - slot)
+        elevation = 1 - 2 * descent * ascent
+        height = self._ring_height(angle) + (.70 * gap + .40) * elevation
+        guest_weight = _smootherstep(1 - abs(slot - 11))
+        # Гостевое место вынесено дальше станций. Компенсируем его сдвиг
+        # только радиусом орбиты, сохраняя высоту и размер близкого силуэта.
+        gap += 2.4 * guest_weight
+        camera_radius = self.ring_radius + gap
+        camera_angle = angle + .025
         self._camera_eye = np.array((camera_radius * sin(camera_angle), height,
                                      camera_radius * cos(camera_angle)))
-        self._camera_target = self.ring_radius * np.array((sin(angle), 0.0, cos(angle)))
+        radial = np.array((sin(angle), 0.0, cos(angle)))
+        tangent = np.array((cos(angle), 0.0, -sin(angle)))
+        # Взгляд проходит сквозь ближнюю сторону кольца к его середине.
+        # Небольшой боковой и вертикальный сдвиг героя открывает за ним
+        # широкую глубокую дугу; наведение не зависит от набора геометрии.
+        tilt = .64 - .12 * descent * ascent
+        self._camera_target = self._camera_eye + 20 * (
+            -radial + .10 * tangent + np.array((0.0, -tilt * elevation, 0.0)))
         focus = self._route[int(floor(phase + .5)) % self.slot_count]
         if focus >= len(self.ships):
-            focus = DODO_ID if phase % self.slot_count <= 11 else 0
+            # Без гостя раньше передаём подпись Coriolis: после 10.7 Dodo
+            # уже уходит к левому краю, а ближайшая станция видна целиком.
+            focus = DODO_ID if phase % self.slot_count < 10.7 else 0
         self.selected = focus
         objects = []
         for obj, dock in zip(self._base_objects, self._docks):
@@ -270,6 +306,14 @@ class FlybyScene(SpaceScene):
             matrix.setflags(write=False)
             objects.append(SpaceObject(index, position, obj.radius, matrix))
         self.objects = tuple(objects)
+
+    def view_projection(self, aspect):
+        projection = super().view_projection(aspect)
+        # В узком окне расширяем настоящее поле зрения по обеим осям.
+        # Силуэт не растягивается, а горизонтальный угол перестаёт сжиматься:
+        # герой остаётся целым и в квадратном/портретном окне.
+        projection[:2] *= min(1.0, self._aspect / 1.5)
+        return projection
 
     @property
     def eye(self):
