@@ -39,6 +39,7 @@ class SpaceScene:
     множителем скорости. Выбор через pick не меняет состояние камеры.
     """
 
+    is_flyby = False
     ring_radius = 25.5
     fov = 48.0
     speed = 10.0
@@ -282,6 +283,10 @@ class SpaceScene:
     def drag(self, dx, dy):
         self._yaw = (self._yaw + float(dx) * 0.005) % (2 * pi)
         minimum, maximum = (-1.48, -0.20) if self.camera_mode == "overview" else (-1.48, 1.48)
+        if self.camera_mode == "flight":
+            # Переданный извне вид может смотреть прямо в полюс. Сначала
+            # плавно выходим из него, затем действуют обычные пределы.
+            minimum, maximum = min(minimum, self._pitch), max(maximum, self._pitch)
         self._pitch = float(np.clip(self._pitch - float(dy) * 0.005, minimum, maximum))
 
     def zoom(self, steps):
@@ -307,11 +312,15 @@ class SpaceScene:
         displacement = right * axes[0] + np.array((0, axes[1], 0)) + self.forward * axes[2]
         self._flight_eye += displacement * self.speed * boost * float(np.clip(dt, 0, 0.1))
 
-    def view_projection(self, aspect):
-        self._aspect = max(0.05, float(aspect))
+    def _view_basis(self):
         forward = self.forward
         right = _unit(np.cross(forward, (0, 1, 0)))
         up = np.cross(right, forward)
+        return right, up, forward
+
+    def view_projection(self, aspect):
+        self._aspect = max(0.05, float(aspect))
+        right, up, forward = self._view_basis()
         eye = self.eye
         view = np.eye(4, dtype=np.float64)
         view[:3, :3] = (right, up, -forward)

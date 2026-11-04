@@ -41,6 +41,13 @@ class Model:
     normal_scale: int
     face_vertices: tuple[int, ...] = ()  # По одной опорной вершине на грань.
     vertex_test_default: bool = False
+    hull_triangles: tuple[tuple[int, int, int], ...] = ()  # Порядок граней из таблицы, обход наружу.
+
+    @property
+    def default_face_test(self) -> str:
+        if self.hull_triangles:
+            return "hull"
+        return "vertex" if self.vertex_test_default else "elite"
 
 
 @dataclass(frozen=True)

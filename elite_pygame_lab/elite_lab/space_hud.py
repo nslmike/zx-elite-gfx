@@ -6,7 +6,7 @@ import moderngl
 import numpy as np
 import pygame
 
-from .space_assets import SOURCE_NAMES, TEXTURE_NAMES
+from .space_assets import FLYBY_SOURCE_NAMES, SOURCE_NAMES, TEXTURE_NAMES
 
 
 _INK = (231, 236, 235)
@@ -58,6 +58,8 @@ class SpaceHUD:
         mono = pygame.font.match_font("menlo,dejavusansmono,consolas")
         self.mono = pygame.font.Font(mono, round(12 * self.s))
         self.text = pygame.font.Font(sans, round(15 * self.s))
+        # Helvetica не содержит стрелок; подписи клавиш должны показывать их явно.
+        self.symbols = pygame.font.Font(mono, round(15 * self.s))
         self.title = pygame.font.Font(sans, round(37 * self.s))
         self.brand = pygame.font.Font(sans, round(23 * self.s))
         self.brand.set_bold(True)
@@ -75,7 +77,179 @@ class SpaceHUD:
     def marker_at(self, point):
         return next((index for index, rect in self.markers.items() if rect.collidepoint(point)), None)
 
+    @staticmethod
+    def _flyby_clock(elapsed):
+        """Абсолютное время: после полного круга счётчик не возвращается к нулю."""
+        minutes, seconds = divmod(max(0, int(elapsed)), 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
+
+    def _paint_flyby(self, scene):
+        """Время, подпись корпуса и компактные команды у края кадра."""
+        w, h = self.size
+        s = self.s
+        pad = round(28 * s)
+        flying = scene.camera_mode == "flight"
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        self.tabs.clear()
+        self.markers.clear()
+        self.options.clear()
+
+        def fit(text, font, width):
+            width = round(width)
+            if font.size(text)[0] <= width:
+                return text
+            while text and font.size(text + "…")[0] > width:
+                text = text[:-1]
+            return text.rstrip() + "…"
+
+        def label(text, x, y, font=None, color=_INK, width=None):
+            font = font or self.text
+            if width is not None:
+                text = fit(text, font, width)
+            surf.blit(font.render(text, True, color), (round(x), round(y)))
+
+        # Нижняя полоса не занимает композиционный центр, верхняя — едва видна.
+        for end, depth, opacity in ((False, 80, 110), (True, 185, 200)):
+            rows = round(depth * s)
+            for i in range(min(h, rows)):
+                y = h - i - 1 if end else i
+                pygame.draw.line(surf, (4, 9, 16, round(opacity * (1 - i / rows) ** 1.6)),
+                                 (0, y), (w, y))
+        zx = scene.model_source == "zx"
+        accent = (235, 245, 255) if zx else _GOLD
+        label("E L I T E", pad, 18*s, self.mono, accent)
+        mode_title = "СВОБОДНЫЙ ПОЛЁТ" if flying else "АВТОПРОЛЁТ"
+        caption = (f"{mode_title}     H  интерфейс  /  Esc  выход" if w > 580*s else
+                   "H интерфейс / Esc выход")
+        label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
+        paused = scene.paused
+        if flying:
+            label(f"РУЧНОЙ ПОЛЁТ · маршрут на паузе · {self._flyby_clock(scene.elapsed)}",
+                  pad, 39*s, self.mono, accent, width=w-2*pad)
+            x, y = pad, 59*s
+            for hint in ("WASD  движение", "Q / E  вниз / вверх", "Shift  быстрее",
+                         "ПКМ  взгляд", "Колесо  вперёд / назад"):
+                width = self.mono.size(hint)[0]
+                if x > pad and x + width > w - pad:
+                    x, y = pad, y + 19*s
+                label(hint, x, y, self.mono, _MUTED, width=w-2*pad)
+                x += width + 16*s
+        else:
+            label("ПКМ + тянуть  взгляд  ·  R  по курсу", pad, 39*s, self.mono, _MUTED, width=w-2*pad)
+            state = "ПАУЗА" if paused else "ПРОЛЁТ"
+            label(f"{self._flyby_clock(scene.elapsed)} · {state} · держать ← / →  4×",
+                  pad, 59*s, self.mono, accent if paused else _MUTED, width=w-2*pad)
+
+        empty = bool(getattr(scene, "empty_slot", False))
+        ship = None if empty else scene.ships[scene.selected]
+        authored = ship is not None and bool(ship.materials) and scene.texture_source == "author"
+        source = FLYBY_SOURCE_NAMES[scene.model_source]
+        textures = "Родные" if authored else "Наша обшивка"
+        auto = "вкл" if scene.auto_sources else "выкл"
+        wide = w > 760*s
+        flight_button = ("toggle_flight", "F", "К автопролёту" if flying else "Свободный полёт")
+        transport = (flight_button,) if flying else (
+            flight_button, ("toggle_pause", "Пробел", "Продолжить" if paused else "Пауза"),
+            ("scrub_back", "←", "−1 с"), ("scrub_forward", "→", "+1 с"))
+        models = (("cycle_source", "M", f"Модели · {source}" if wide else source),
+                  ("cycle_textures", "T", "Каркас · без текстур" if zx else
+                   (f"Текстуры · {textures}" if wide else textures)))
+        if not flying:
+            models += (("toggle_auto", "A", f"Авто · {auto}"),)
+        groups = (transport, models + (("menu_credits", "I", "Авторы"),))
+        gap, bh = round(6*s), round(28*s)
+        group_gap = round(22*s)
+        prepared = []
+        for buttons in groups:
+            group = []
+            for action, key, text in buttons:
+                caption = f"{key}  {text}"
+                font = self.symbols if action in ("scrub_back", "scrub_forward") else self.text
+                width = min(w - 2*pad, font.size(caption)[0] + round(20*s))
+                group.append((action, caption, width, font))
+            prepared.append(group)
+        joined_width = sum(sum(item[2] for item in group) + (len(group)-1)*gap for group in prepared) + group_gap
+        single_row = joined_width <= w - 2*pad
+        rows, row, x = [], [], pad
+        for group_index, buttons in enumerate(prepared):
+            if group_index:
+                if single_row:
+                    x += group_gap - gap
+                else:
+                    rows.append(row)
+                    row, x = [], pad
+            for action, caption, width, font in buttons:
+                if row and x + width > w - pad:
+                    rows.append(row)
+                    row, x = [], pad
+                row.append((action, caption, x, width, font))
+                x += width + gap
+        if row:
+            rows.append(row)
+        controls_y = h - round(22*s) - len(rows)*bh - (len(rows)-1)*gap
+        for index, row in enumerate(rows):
+            y = controls_y + index*(bh+gap)
+            for action, caption, x, width, font in row:
+                rect = pygame.Rect(x, y, width, bh)
+                self.options[action] = rect
+                active = ((action == "menu_credits" and self.menu == "credits") or
+                          (action == "toggle_pause" and paused))
+                pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
+                if action in ("cycle_source", "toggle_flight"):
+                    pygame.draw.line(surf, accent, rect.topleft, rect.bottomleft, max(1, round(2*s)))
+                label(caption, x + 10*s, y + 4*s, font,
+                      color=accent if active or action in ("cycle_source", "toggle_flight") else _MUTED,
+                      width=width-round(20*s))
+
+        title_y = controls_y - round(38*s)
+        label("Пустое место" if empty else ship.name, pad, title_y, self.brand,
+              color=accent, width=w-2*pad)
+        source_title = "Гость Pioneer отсутствует в этом наборе" if empty else ship.source_title
+        if not empty and scene.model_source in ("zx", "elite"):
+            source_title = FLYBY_SOURCE_NAMES[scene.model_source]
+        elif not empty and scene.model_source not in (ship.source_id, "mixed"):
+            source_title += f" · замена для {source}"
+        if flying:
+            source_title = "Ближайший объект · " + source_title
+        label(source_title, pad, title_y - 19*s, self.mono, _MUTED, width=w-2*pad)
+        if self.menu == "credits":
+            self._flyby_credits(surf, scene, ship, label, pad, title_y - 30*s)
+        return surf
+
+    def _flyby_credits(self, surf, scene, ship, label, pad, bottom):
+        s = self.s
+        width = min(self.size[0] - 2*pad, round(520*s))
+        if ship is None:
+            details = ("Пустое место гостя", "В этом наборе гостевой модели нет.",
+                       "Sinonatrix Courier доступен в Pioneer и сборном флоте.")
+        else:
+            texture = ("Без текстур · пиксельный каркас" if scene.model_source == "zx" else
+                       ship.source_title if ship.materials and scene.texture_source == "author" else
+                       "Наша процедурная обшивка")
+            details = (ship.name, f"Геометрия — {ship.source_title}", f"Автор — {ship.author}",
+                       f"Лицензия — {ship.license}", f"Текстуры — {texture}")
+        lines = []
+        for text in details:
+            current = ""
+            for word in text.split():
+                if current and self.text.size(current + " " + word)[0] > width - 24*s:
+                    lines.append(current)
+                    current = ""
+                current = (current + " " + word).strip()
+            lines.append(current)
+        height = round((len(lines)*22 + 39)*s)
+        top = max(round(55*s), round(bottom-height))
+        rect = pygame.Rect(pad, top, width, height)
+        pygame.draw.rect(surf, (12, 23, 31, 246), rect, border_radius=max(1, round(4*s)))
+        pygame.draw.line(surf, _GOLD, rect.topleft, rect.topright)
+        for index, line in enumerate(lines):
+            label(line, pad+12*s, top+(9+index*22)*s, color=_GOLD if index == 0 else _INK)
+        label("I / Esc  закрыть", pad+12*s, rect.bottom-23*s, self.mono, _MUTED)
+
     def _paint(self, scene, hover, vp):
+        if getattr(scene, "is_flyby", False):
+            return self._paint_flyby(scene)
         w, h = self.size
         s = self.s
         pad = round(34 * s)
@@ -256,9 +430,13 @@ class SpaceHUD:
     def draw(self, scene, size, hover, vp):
         if self.size != size:
             self._resize(size)
-        # Во время полёта меняется только 3D. Карту перерисовываем при смене проекции.
-        key = (size, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
-               self.menu, vp.tobytes() if scene.camera_mode == "overview" else None)
+        # Секунды и паузу обновляем независимо от выбора корпуса; карту — при смене проекции.
+        is_flyby = getattr(scene, "is_flyby", False)
+        playback = (scene.paused, int(scene.elapsed)) if is_flyby else None
+        key = (size, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
+               self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
+               playback,
+               vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)
             self.texture.write(pygame.image.tobytes(surface, "RGBA", True))

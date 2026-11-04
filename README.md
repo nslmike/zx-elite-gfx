@@ -29,6 +29,8 @@ python -m elite_lab --mode space --model-source mixed
 
 Click a ship or its number to inspect it. Drag to orbit, scroll to zoom and press **O** to return to the ring. **M** changes the model source, **T** switches between artist textures and procedural hull panels, and **I** opens the credits for the selected ship.
 
+For an automatic tour, run `python -m elite_lab --mode flyby`. Press **F** to take control of the camera, fly with **WASD** and look around by dragging with the right mouse button. Press **F** again to rejoin the tour beside the nearest exhibit. [Free flight near Krait](elite_pygame_lab/previews/space_free_flight.png)
+
 ### Explore the ZX renderer
 
 Run `python -m elite_lab` for the classic wireframe view. To follow a line one pixel at a time, run `python -m elite_lab --mode line`. For these modes, `requirements.txt` supplies the only runtime dependency, Pygame. [Renderer notes and Z80 comparisons](FINDINGS.md)

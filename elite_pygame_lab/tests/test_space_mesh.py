@@ -199,6 +199,51 @@ class SpaceMeshTest(unittest.TestCase):
             self.assertEqual(set(build_mesh(model_id)[:, 8]), {5})
         self.assertIn(5, set(build_mesh(7)[:, 8]))
 
+    def test_cobra_upper_and_lower_hull_uv_join_at_uniform_scale(self):
+        # Решётка, пересекающая машинную грань, должна продолжаться без
+        # скачка карты. Проверяем обе стороны всех стыков, а не один ракурс.
+        for model_id in COBRA_IDS:
+            data = build_mesh(model_id)
+            face_rows, offset = {}, 0
+            for face, loop in _hull_polygons(model_id):
+                count = 3 * (len(loop) - 2)
+                face_rows[face] = data[offset:offset + count]
+                offset += count
+            for faces, direction in ((range(9), 1), (range(10, 13), -1)):
+                with self.subTest(model_id=model_id, upper=direction > 0):
+                    rows = np.concatenate([face_rows[face] for face in faces])
+                    uv_by_position = {}
+                    for row in rows:
+                        position = tuple(row[:3])
+                        if position in uv_by_position:
+                            np.testing.assert_array_equal(row[6:8], uv_by_position[position])
+                        uv_by_position[position] = row[6:8]
+                    # Вдоль X и Z одинаковый масштаб; верх и низ сохраняют
+                    # исходную ориентацию, без растяжения отдельных фасетов.
+                    projected = np.column_stack((rows[:, 0], rows[:, 2], np.ones(len(rows))))
+                    chart = np.linalg.lstsq(projected, rows[:, 6:8], rcond=None)[0]
+                    np.testing.assert_allclose(chart[[0, 1], [1, 0]], 0, atol=1e-6)
+                    self.assertGreater(chart[0, 0] * direction, 0)
+                    self.assertLess(chart[1, 1], 0)
+                    self.assertAlmostEqual(abs(chart[0, 0]), abs(chart[1, 1]), places=6)
+                    np.testing.assert_allclose(projected @ chart, rows[:, 6:8], atol=1e-6)
+
+            # Кормовая стенка имеет собственную развёртку XY: общая X/Z
+            # проекция обшивки не должна схлопнуть её в одномерный отрезок.
+            stern = face_rows[9]
+            self.assertEqual(np.linalg.matrix_rank(stern[:, 6:8] - stern[0, 6:8]), 2)
+
+            # Исправление сохраняет фазу знакомой решётки: передняя пятая
+            # часть правого стыка 0–6 остаётся на старой карте грани 2.
+            loop = dict(_hull_polygons(model_id))[2]
+            reference = _Mesh(_points(model_id))
+            reference.triangle(_points(model_id)[list(loop)])
+            old_uv = np.asarray(reference.rows)[:, 6:8]
+            i, j = loop.index(0), loop.index(6)
+            old_anchor = (4 * old_uv[i] + old_uv[j]) / 5
+            new_anchor = (4 * face_rows[2][i, 6:8] + face_rows[2][j, 6:8]) / 5
+            np.testing.assert_allclose(new_anchor, old_anchor, atol=1e-7)
+
     def test_each_engine_aperture_uses_its_own_unit_uv_rectangle(self):
         for model_id in (1, 8, 9, 10, 12, 13, 16, 17):
             with self.subTest(model_id=model_id):

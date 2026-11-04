@@ -5,6 +5,7 @@
 и HDR-cubemap хранятся в линейном пространстве; шейдеры выводят готовый sRGB.
 """
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -377,7 +378,10 @@ class SpaceLook:
         ctx.enable_direct(0x884F)
         self.hull["u_surface"].value = 0
         self.hull["u_stencils"].value = 3
-        self._imported_textures = {}
+        self._imported_textures = OrderedDict()
+        self._imported_texture_bytes = 0
+        self._imported_texture_budget = 384 * 1024 * 1024
+        self._imported_texture_limit = 256
         self._white = ctx.texture((1, 1), 3, bytes((255, 255, 255)))
         for unit, name in enumerate(("diffuse", "normal", "specular", "emission", "gloss"), 4):
             self.hull[f"u_{name}_map"].value = unit
@@ -434,8 +438,24 @@ class SpaceLook:
                     tex.anisotropy = min(8, self.ctx.max_anisotropy)
                 else:
                     tex = self.ctx.texture((1, 1), 3, bytes(neutral))
+                # Учитываем RGB8 как RGBA8 с mipmap: драйвер вправе хранить
+                # выравненный канал. Бюджета хватает всему текущему mixed,
+                # поэтому обычный обзор не вытесняет сам себя каждый кадр.
+                size = tex.width * tex.height * 4
+                self._imported_texture_bytes += size * 4 // 3 if path else size
                 self._imported_textures[key] = tex
+            self._imported_textures.move_to_end(key)
             self._imported_textures[key].use(unit)
+        protected = {path or neutral for path, neutral in maps}
+        for key in tuple(self._imported_textures):
+            if (self._imported_texture_bytes <= self._imported_texture_budget and
+                    len(self._imported_textures) <= self._imported_texture_limit):
+                break
+            if key not in protected:
+                tex = self._imported_textures.pop(key)
+                size = tex.width * tex.height * 4
+                self._imported_texture_bytes -= size * 4 // 3 if not isinstance(key, tuple) else size
+                tex.release()
         self.hull["u_gloss"].value = material.gloss
         self.hull["u_glow_gain"].value = material.emission_strength
         self.hull["u_specular_tint"].value = material.specular_color
@@ -444,6 +464,7 @@ class SpaceLook:
         for texture in self._imported_textures.values():
             texture.release()
         self._imported_textures.clear()
+        self._imported_texture_bytes = 0
         # Драйвер Mac проверяет комплектность всех sampler даже в выключенной ветви.
         for unit in range(4, 9):
             self._white.use(unit)

@@ -54,6 +54,10 @@ class LineTrace:
     steps: tuple[PixelStep, ...]
 
     @property
+    def count(self) -> int:
+        return len(self.steps)
+
+    @property
     def clip_status(self) -> str:
         if not self.steps:
             return "rejected"
@@ -64,6 +68,16 @@ class LineTrace:
     @property
     def last_visible(self) -> PixelStep | None:
         return next((step for step in reversed(self.steps) if step.in_bitmap), None)
+
+    @property
+    def endpoints(self) -> tuple[tuple[int, int], tuple[int, int]] | None:
+        if self.clip_status == "inside":
+            return self.start, self.end
+        last = self.last_visible
+        if last:
+            first = self.steps[0]
+            return (first.x, first.y), (last.x, last.y)
+        return None
 
     @property
     def pixels(self) -> tuple[tuple[int, int], ...]:
