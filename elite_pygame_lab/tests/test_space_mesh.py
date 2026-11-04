@@ -189,6 +189,40 @@ class SpaceMeshTest(unittest.TestCase):
             data = build_mesh(model_id)
             self.assertGreaterEqual(np.count_nonzero(data[:, 8] == 6), 72)
 
+    def test_raised_glass_has_two_planar_slopes(self):
+        for model_id in (8, 9, 12, 13, 16):
+            with self.subTest(model_id=model_id):
+                self._check_planar_canopy(model_id)
+
+    def _check_planar_canopy(self, model_id):
+        # Косой блик не должен показывать внутреннюю диагональ стекла.
+        # Проверяем реальные плоскости, чтобы сглаженные нормали не скрыли излом.
+        data = build_mesh(model_id)
+        triangles = data[data[:, 8] == 2].reshape(-1, 3, 9)
+        remaining, panes = set(range(len(triangles))), []
+        while remaining:
+            component = {remaining.pop()}
+            positions = {tuple(p) for p in triangles[next(iter(component)), :, :3]}
+            while True:
+                touching = {i for i in remaining
+                            if any(tuple(p) in positions for p in triangles[i, :, :3])}
+                if not touching:
+                    break
+                component.update(touching)
+                remaining.difference_update(touching)
+                positions.update(tuple(p) for i in touching for p in triangles[i, :, :3])
+            pane = np.concatenate([triangles[i] for i in component])
+            points = pane[:, :3].reshape(-1, 3, 3)
+            normals = np.cross(points[:, 1] - points[:, 0], points[:, 2] - points[:, 0])
+            normals /= np.linalg.norm(normals, axis=1)[:, None]
+            np.testing.assert_allclose(normals, np.broadcast_to(normals[0], normals.shape), atol=1e-6)
+            np.testing.assert_allclose(pane[:, 3:6], np.broadcast_to(normals[0], pane[:, 3:6].shape),
+                                       atol=1e-6)
+            self.assertLess(np.abs((pane[:, :3] - pane[0, :3]) @ normals[0]).max(), 2e-7)
+            panes.append(normals[0])
+        self.assertEqual(len(panes), 2)
+        self.assertGreater(np.linalg.norm(panes[0] - panes[1]), .04)
+
     def test_original_details_have_separate_materials(self):
         required = {0: {1, 4, 6}, 1: {3, 4}, 8: {2, 3}, 9: {2, 3}, 13: {2, 3},
                     14: {2, 4}, 15: {6}, 16: {2, 3}, 17: {2, 3, 4}, 19: {1, 4, 6}}
@@ -302,9 +336,12 @@ class SpaceMeshTest(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 build_mesh(value)
 
-    def test_cached_buffers_are_independent_and_variants_share_geometry(self):
-        for a, b in ((10, 11), COBRA_IDS):
-            np.testing.assert_array_equal(build_mesh(a), build_mesh(b))
+    def test_cached_buffers_are_independent_and_variants_share_hulls(self):
+        np.testing.assert_array_equal(build_mesh(10), build_mesh(11))
+        # Профили покрытий различаются, но исходные корпуса и исправленные
+        # плоские стёкла торговой и пиратской версий остаются общими.
+        a, b = (build_mesh(model_id) for model_id in COBRA_IDS)
+        np.testing.assert_array_equal(a, b)
         original = build_mesh(0)
         changed = build_mesh(0)
         changed[:] = 0

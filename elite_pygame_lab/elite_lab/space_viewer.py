@@ -105,6 +105,9 @@ class ZXScreen:
 class SpaceRenderer:
     def __init__(self, ctx, scene):
         self.ctx = ctx
+        # Внеэкранные кадры используют пиксели 1:1. Оконный цикл выставляет
+        # плотность текущего drawable, чтобы размер HUD в пунктах не менялся.
+        self.pixel_ratio = 1.0
         self.look = SpaceLook(ctx)
         self.hud = SpaceHUD(ctx)
         self.zx = None
@@ -268,7 +271,7 @@ class SpaceRenderer:
             # не зависят от вписанной игровой области с её квадратными пикселями.
             ctx.viewport = (0, 0, *size)
             if show_hud:
-                self.hud.draw(scene, size, hover, vp)
+                self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
             return
         planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
         planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
@@ -316,7 +319,7 @@ class SpaceRenderer:
             else:
                 mesh.vao.render()
         if show_hud:
-            self.hud.draw(scene, size, hover, vp)
+            self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
 
     def release(self):
         if self.zx is not None:
@@ -331,6 +334,101 @@ class SpaceRenderer:
         self._depth_program.release()
         self.hud.release()
         self.look.release()
+
+
+class _CocoaDrawable:
+    """Retina для существующего окна pygame, без замены SDL и его контекста.
+
+    pygame 2.6 display.set_mode не запрашивает SDL_WINDOW_ALLOW_HIGHDPI.
+    AppKit разрешает включить настоящий backing у уже созданного GL view.
+    После этого SDL всё ещё сообщает размер в пунктах: конвертируем через
+    сам view, как требует Apple, заново после resize/смены монитора.
+    """
+
+    def __init__(self):
+        import ctypes as ct
+
+        class Size(ct.Structure):
+            _fields_ = (("width", ct.c_double), ("height", ct.c_double))
+
+        self._size_type = Size
+        objc = ct.CDLL("/usr/lib/libobjc.A.dylib")
+        objc.objc_getClass.argtypes = (ct.c_char_p,)
+        objc.objc_getClass.restype = ct.c_void_p
+        objc.sel_registerName.argtypes = (ct.c_char_p,)
+        objc.sel_registerName.restype = ct.c_void_p
+        selector = objc.sel_registerName
+        pointer = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p)(("objc_msgSend", objc))
+        self._call = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p)(("objc_msgSend", objc))
+        set_bool = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p, ct.c_bool)(("objc_msgSend", objc))
+        # NSSize содержит два CGFloat: возвращается в регистрах как на Intel,
+        # так и на ARM64. NSRect потребовал бы отдельного ABI stret на Intel.
+        self._convert = ct.CFUNCTYPE(Size, ct.c_void_p, ct.c_void_p, Size)(("objc_msgSend", objc))
+        self._update = selector(b"update")
+        self._convert_size = selector(b"convertSizeToBacking:")
+        self._context = pointer(objc.objc_getClass(b"NSOpenGLContext"), selector(b"currentContext"))
+        self._view = pointer(self._context, selector(b"view"))
+        if not self._view:
+            raise RuntimeError("Не найден Cocoa view оконного OpenGL-контекста")
+        set_bool(self._view, selector(b"setWantsBestResolutionOpenGLSurface:"), True)
+        self._call(self._context, self._update)
+        self._previous = None
+
+    def __call__(self, logical_size):
+        pixels = self._convert(self._view, self._convert_size,
+                               self._size_type(*logical_size))
+        size = (round(pixels.width), round(pixels.height))
+        if size != self._previous:
+            self._call(self._context, self._update)
+            self._previous = size
+        return size
+
+
+def _sdl_drawable_query():
+    """Используем именно уже загруженный SDL, а не другую системную копию."""
+    import ctypes as ct
+
+    try:
+        sdl = ct.CDLL(pygame.base.__file__)
+        current = sdl.SDL_GL_GetCurrentWindow
+        current.argtypes = ()
+        current.restype = ct.c_void_p
+        drawable = sdl.SDL_GL_GetDrawableSize
+        drawable.argtypes = (ct.c_void_p, ct.POINTER(ct.c_int), ct.POINTER(ct.c_int))
+        drawable.restype = None
+    except (OSError, AttributeError):
+        # На платформах, где зависимые символы .pyd недоступны через dlsym,
+        # обычное окно pygame без ALLOW_HIGHDPI имеет один пиксель на пункт.
+        return lambda logical: logical
+
+    def size(logical):
+        width, height = ct.c_int(), ct.c_int()
+        drawable(current(), ct.byref(width), ct.byref(height))
+        return width.value, height.value
+
+    return size
+
+
+def _window_drawable_query():
+    if sys.platform == "darwin" and pygame.display.get_driver() == "cocoa":
+        try:
+            return _CocoaDrawable()
+        except (OSError, AttributeError, RuntimeError) as exc:
+            print(f"Retina недоступна: {exc}. Используется обычный буфер SDL.", flush=True)
+    return _sdl_drawable_query()
+
+
+def _window_sizes(ctx):
+    logical = pygame.display.get_window_size()
+    # SDL может сообщать старый положительный размер и после minimize.
+    # На Cocoa у такого окна уже нет доступной поверхности для GL draw/flip.
+    # get_active проверяет SHOWN/MINIMIZED, а не наличие фокуса клавиатуры.
+    if not pygame.display.get_active():
+        return logical, None
+    drawable = ctx._window_drawable(logical)
+    # Свёрнутое окно на некоторых драйверах временно не имеет drawable.
+    # Ввод и выход из приложения продолжают работать, рисование ждёт restore.
+    return logical, drawable if min(*logical, *drawable) > 0 else None
 
 
 def _window_context():
@@ -351,7 +449,12 @@ def _window_context():
         except pygame.error:
             if not samples:
                 raise
-    return moderngl.create_context(require=330)
+    ctx = moderngl.create_context(require=330)
+    ctx._window_drawable = _window_drawable_query()
+    _, size = _window_sizes(ctx)
+    if size is not None:
+        ctx.viewport = (0, 0, *size)
+    return ctx
 
 
 class SpaceControls:
@@ -696,6 +799,10 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
         except Exception as exc:
             raise SystemExit(f"Космическому атласу нужен OpenGL 3.3 Core. Не удалось открыть контекст: {exc}") from exc
         print(f"OpenGL {ctx.info['GL_VERSION']} · {ctx.info['GL_RENDERER']}", flush=True)
+        if not headless:
+            logical, pixels = _window_sizes(ctx)
+            width, height = pixels or (0, 0)
+            print(f"Окно {logical[0]}×{logical[1]} пт · буфер {width}×{height} пикс.", flush=True)
         if mode == "flyby":
             scene = FlybyScene(model_id, model_source=model_source, texture_source=texture_source,
                                catalog=catalog, source_interval=source_interval)
@@ -713,8 +820,12 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
         if headless or screenshot:
             # Для чтения на Mac сводим выборки MSAA в отдельный буфер с одним
             # цветом на пиксель. Скриншот окна использует тот же контекст и кадр.
-            size = _SIZE if headless else ctx.screen.size
+            size = _SIZE if headless else _window_sizes(ctx)[1]
+            if size is None:
+                raise SystemExit("Оконный буфер недоступен. Восстановите окно или используйте --headless для снимка.")
             if not headless:
+                logical_size = pygame.display.get_window_size()
+                renderer.pixel_ratio = min(px / pt for px, pt in zip(size, logical_size))
                 renderer.draw(scene, ctx.screen, size, show_hud)
                 pygame.display.flip()
             samples = min(4, ctx.max_samples)
@@ -729,17 +840,18 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             return
 
         controls = (FlybyControls if mode == "flyby" else SpaceControls)(scene, renderer.hud, show_hud)
-        initial_size = pygame.display.get_window_size()
-        density = tuple(px / pt for px, pt in zip(ctx.screen.size, initial_size))
         clock = pygame.time.Clock()
         while True:
             seconds = clock.tick(60) / 1000
-            logical_size = pygame.display.get_window_size()
-            size = tuple(max(1, round(pt * ratio)) for pt, ratio in zip(logical_size, density))
-            for e in pygame.event.get():
-                if not controls.event(e, logical_size, size):
+            events = pygame.event.get()
+            logical_size, size = _window_sizes(ctx)
+            for e in events:
+                if not controls.event(e, tuple(max(1, x) for x in logical_size), size or (1, 1)):
                     return
             controls.update(seconds)
+            if size is None:
+                continue
+            renderer.pixel_ratio = min(px / pt for px, pt in zip(size, logical_size))
             hover = None
             if (controls.show_hud and scene.camera_mode == "overview" and controls.press is None
                     and pygame.mouse.get_focused()):

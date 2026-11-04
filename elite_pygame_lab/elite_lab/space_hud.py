@@ -43,17 +43,19 @@ class SpaceHUD:
         self.prog["layer"].value = 0
         self.texture = None
         self.size = None
+        self.pixel_ratio = 1.0
         self.key = None
         self.tabs = {}
         self.markers = {}
         self.menu = None
         self.options = {}
 
-    def _resize(self, size):
+    def _resize(self, size, pixel_ratio=1.0):
         if self.texture is not None:
             self.texture.release()
         self.size = size
-        self.s = max(.7, min(size[0] / 1240, size[1] / 780, 2.5))
+        self.pixel_ratio = pixel_ratio
+        self.s = max(.7 * pixel_ratio, min(size[0] / 1240, size[1] / 780, 2.5 * pixel_ratio))
         sans = pygame.font.match_font("helveticaneue,dejavusans,arial")
         mono = pygame.font.match_font("menlo,dejavusansmono,consolas")
         self.mono = pygame.font.Font(mono, round(12 * self.s))
@@ -427,13 +429,13 @@ class SpaceHUD:
             label(names[key], left+12*s, y+4*s, color=_GOLD if key == current else _INK)
             y = row.bottom
 
-    def draw(self, scene, size, hover, vp):
-        if self.size != size:
-            self._resize(size)
+    def draw(self, scene, size, hover, vp, *, pixel_ratio=1.0):
+        if self.size != size or self.pixel_ratio != pixel_ratio:
+            self._resize(size, pixel_ratio)
         # Секунды и паузу обновляем независимо от выбора корпуса; карту — при смене проекции.
         is_flyby = getattr(scene, "is_flyby", False)
         playback = (scene.paused, int(scene.elapsed)) if is_flyby else None
-        key = (size, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
+        key = (size, pixel_ratio, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
                playback,
                vp.tobytes() if scene.camera_mode == "overview" else None)

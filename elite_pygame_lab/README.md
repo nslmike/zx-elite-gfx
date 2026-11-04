@@ -68,6 +68,8 @@ python -m elite_lab --mode line
 ```bash
 # Начать с каркаса ZX и переключать виды только вручную
 .venv/bin/python -m elite_lab --mode flyby --source-interval 0
+# Посмотреть свои корабли подряд, начиная с торгового Python и двух пиратов
+.venv/bin/python -m elite_lab --mode flyby --model-source elite --model 10 --source-interval 0
 # Сразу оказаться у курьера между Coriolis и ракетой
 .venv/bin/python -m elite_lab --mode flyby --model 20 --model-source pioneer --source-interval 0
 # Сохранить цветную Cobra в том же стартовом ракурсе, что и каркас ZX
@@ -120,9 +122,22 @@ python -m elite_lab --mode line
 .venv/bin/python -m elite_lab --mode space --model 9 --headless --no-hud --screenshot /tmp/elite-cobra.png
 ```
 
+У торговой Cobra Mk III №09 в наборе `elite` основные панели покрыты матовой
+краской. Диагональные секции крыльев и рама кабины оставлены металлическими.
+В тёмно-графитовом стекле фонаря виден мягкий блик звезды, а за стеклом
+угадываются кресла. В режиме осмотра потяните мышью, чтобы облететь кабину
+и сравнить блики. [Материалы Cobra крупным планом](previews/cobra_materials.png)
+
+У торгового Python №10 продольные металлические накладки и следы погрузки.
+У пиратского Python №11 тот же корпус охвачен поперечными поясами, а в местах
+сколов краски виден металл. Viper и Fer-de-Lance сохранили ухоженную краску,
+а у Thargoid защитное стекло покрывает светящиеся сенсоры. В режиме осмотра
+нажмите **→**, чтобы перейти с торгового Python на пиратский.
+Слабый рельеф швов берётся из канала высоты той же текстуры и использует те же
+UV-координаты, что и рисунок панелей. [Покрытия шести моделей](previews/fleet_materials.png)
+
 Внеэкранный режим использует тот же GPU-рендерер и требует доступного
-контекста OpenGL. [Общий вид кольца](previews/space_orbit.png) ·
-[Cobra Mk III крупным планом](previews/space_cobra.png) · [Все 20 корпусов](previews/space_fleet.png).
+контекста OpenGL. [Общий вид кольца](previews/space_orbit.png) · [Все 20 корпусов](previews/space_fleet.png).
 
 #### Наборы моделей и текстур
 
