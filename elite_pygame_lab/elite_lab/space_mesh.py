@@ -220,12 +220,12 @@ class _Mesh:
         self.rows = []
         self.uv_scale = 2 * np.max(np.linalg.norm(source_points - source_points.mean(axis=0), axis=1))
 
-    def triangle(self, points, material=0, basis=None, uv=None):
+    def triangle(self, points, material=0, basis=None, uv=None, *, uv_origin=.5):
         points = np.asarray(points, dtype=float)
         normal = _unit(np.cross(points[1] - points[0], points[2] - points[0]))
         u, v = _basis(normal) if basis is None else basis
         if uv is None:
-            uv = np.column_stack((points @ u, points @ v)) / self.uv_scale + .5
+            uv = np.column_stack((points @ u, points @ v)) / self.uv_scale + uv_origin
         self.rows.extend(np.column_stack((points, np.tile(normal, (3, 1)), uv,
                                           np.full(3, material))))
 
@@ -535,6 +535,14 @@ def _build_cached(model_id):
     polygons = _hull_polygons(model_id)
     hull = dict(polygons)
     mesh = _Mesh(points)
+    if model_id in COBRA_IDS:
+        # Оставляем узнаваемую решётку у передней пятой части правого стыка
+        # (вершины 0–6). Фаза общая всему верху, без отдельных UV-сдвигов
+        # граней и без привязки к размеру процедурной текстуры.
+        anchor = (4 * points[0] + points[6]) / 5
+        old_u, old_v = _basis(_normal(points[list(hull[2])]))
+        cobra_upper_offset = np.array((anchor @ old_u - anchor[0],
+                                       anchor @ old_v + anchor[2])) / mesh.uv_scale
     for face, loop in polygons:
         facet = points[list(loop)]
         if model_id in (0, DODO_ID) and face == 0:
@@ -559,9 +567,21 @@ def _build_cached(model_id):
         material = 5 if model_id in (3, 5, 6, 7) else 0
         if model_id == 4 and face in (0, 6):
             material = 1
-        basis = _basis(_normal(facet))
+        normal = _normal(facet)
+        uv_origin = .5
+        if model_id in COBRA_IDS and face != 9:
+            # Верх и низ Cobra состоят из отдельных машинных граней. Их
+            # прежние локальные базы разрывали панели и жалюзи на стыках.
+            # Общая проекция X/Z сохраняет масштаб и ориентацию обшивки;
+            # кормовая стенка, накладные детали и реальные нормали отдельны.
+            basis = (np.array((1. if normal[1] > 0 else -1., 0., 0.)),
+                     np.array((0., 0., -1.)))
+            if normal[1] > 0:
+                uv_origin = .5 + cobra_upper_offset
+        else:
+            basis = _basis(normal)
         for triangle in _facet_triangles(model, loop, points):
-            mesh.triangle(points[list(triangle)], material, basis)
+            mesh.triangle(points[list(triangle)], material, basis, uv_origin=uv_origin)
     _original_panels(mesh, model_id, points, hull)
     _extra_details(mesh, model_id, points, hull)
     result = mesh.finish()
@@ -589,6 +609,7 @@ def build_mesh(model_id: int) -> np.ndarray:
     на треугольник. Копия позволяет вызывающему коду безопасно менять буфер.
     UV материала 3 локальны для каждой отдельной апертуры (0..1); у других
     материалов они согласованы в плоскостях граней в масштабе корпуса.
+    У Cobra верх и низ корпуса имеют общие непрерывные проекции X/Z.
     Для 0..19 результат детерминирован; неизвестный ID вызывает ValueError.
     """
     if isinstance(model_id, bool) or not isinstance(model_id, (int, np.integer)) or not 0 <= model_id < len(MODELS):
