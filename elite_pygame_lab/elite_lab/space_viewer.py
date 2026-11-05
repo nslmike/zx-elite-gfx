@@ -12,6 +12,7 @@ import pygame
 from .space_hud import SpaceHUD
 from .space_look import SUN_DIRECTION, SpaceLook
 from .space_assets import AssetCatalog, AssetError
+from .space_resolution import RENDER_RESOLUTIONS
 from .space_scene import SpaceScene
 from .space_zx import SpaceZXRenderer, ZX_SIZE
 
@@ -31,7 +32,7 @@ uniform mat4 light_mvp;
 in vec3 position;
 void main() { gl_Position = light_mvp * vec4(position, 1.0); }
 """
-_ZX_VERTEX = """#version 330
+_SCREEN_VERTEX = """#version 330
 out vec2 uv;
 void main() {
     vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
@@ -44,6 +45,12 @@ uniform sampler2D bitmap;
 in vec2 uv;
 out vec4 color;
 void main() { color = vec4(vec3(texture(bitmap, uv).r), 1.0); }
+"""
+_PRESENT_FRAGMENT = """#version 330
+uniform sampler2D frame;
+in vec2 uv;
+out vec4 color;
+void main() { color = texture(frame, uv); }
 """
 
 
@@ -81,7 +88,7 @@ class ZXScreen:
     def __init__(self, ctx):
         self.ctx = ctx
         self.renderer = SpaceZXRenderer()
-        self.program = ctx.program(vertex_shader=_ZX_VERTEX, fragment_shader=_ZX_FRAGMENT)
+        self.program = ctx.program(vertex_shader=_SCREEN_VERTEX, fragment_shader=_ZX_FRAGMENT)
         self.program["bitmap"].value = 0
         self.quad = ctx.vertex_array(self.program, [])
         self.texture = ctx.texture(ZX_SIZE, 1, dtype="f1")
@@ -102,6 +109,42 @@ class ZXScreen:
         self.program.release()
 
 
+class _RenderTarget:
+    """Буфер мира и текстура того же размера для разрешения MSAA."""
+
+    def __init__(self, ctx, size):
+        self.size = size
+        self.resources = []
+        samples = min(4, ctx.max_samples)
+        try:
+            self.texture = ctx.texture(size, 4)
+            self.resources.append(self.texture)
+            self.texture.filter = (moderngl.LINEAR, moderngl.LINEAR)
+            self.texture.repeat_x = self.texture.repeat_y = False
+            depth = ctx.depth_renderbuffer(size, samples=samples)
+            self.resources.append(depth)
+            if samples:
+                color = ctx.renderbuffer(size, 4, samples=samples)
+                self.resources.append(color)
+                self.resolve_frame = ctx.framebuffer(self.texture)
+                self.resources.append(self.resolve_frame)
+            else:
+                color = self.texture
+                self.resolve_frame = None
+            self.draw_frame = ctx.framebuffer(color, depth)
+            self.resources.append(self.draw_frame)
+            error = ctx.error
+            if error != "GL_NO_ERROR":
+                raise moderngl.Error(error)
+        except Exception:
+            self.release()
+            raise
+
+    def release(self):
+        for resource in reversed(self.resources):
+            resource.release()
+
+
 class SpaceRenderer:
     def __init__(self, ctx, scene):
         self.ctx = ctx
@@ -111,6 +154,15 @@ class SpaceRenderer:
         self.look = SpaceLook(ctx)
         self.hud = SpaceHUD(ctx)
         self.zx = None
+        self._world_target = None
+        self._present_program = ctx.program(vertex_shader=_SCREEN_VERTEX, fragment_shader=_PRESENT_FRAGMENT)
+        self._present_program["frame"].value = 0
+        self._present = ctx.vertex_array(self._present_program, [])
+        info = ctx.info
+        limit = min(info["GL_MAX_TEXTURE_SIZE"], info["GL_MAX_RENDERBUFFER_SIZE"])
+        max_width, max_height = (min(limit, axis) for axis in info["GL_MAX_VIEWPORT_DIMS"])
+        self.hud.resolution.unavailable = {index for index, (w, h) in enumerate(RENDER_RESOLUTIONS[1:], 1)
+                                           if w > max_width or h > max_height}
         # Кеш разделяет только геометрию: ливрея и авторские материалы всегда
         # выбираются из текущего ShipAsset, в том числе у торговца и пирата.
         self.buffers = OrderedDict()
@@ -134,6 +186,24 @@ class SpaceRenderer:
         self.orbit_buf = ctx.buffer((circle * scene.ring_radius).astype("f4"))
         self.orbit_program = ctx.program(vertex_shader=_ORBIT_VERTEX, fragment_shader=_ORBIT_FRAGMENT)
         self.orbit = ctx.simple_vertex_array(self.orbit_program, self.orbit_buf, "position")
+
+    def prepare_resolution(self, size):
+        """Сменить буфер только после успешного создания нового."""
+        old = self._world_target
+        if size == getattr(old, "size", None):
+            return None
+        try:
+            if size is not None:
+                self.ctx.clear_errors()
+            target = _RenderTarget(self.ctx, size) if size is not None else None
+        except (moderngl.Error, MemoryError) as exc:
+            self.ctx.clear_errors()
+            print(f"OpenGL · буфер {size[0]}×{size[1]} · {exc}", file=sys.stderr)
+            return f"Не удалось включить {size[0]} × {size[1]}. Выберите другой размер."
+        self._world_target = target
+        if old is not None:
+            old.release()
+        return None
 
     def _mesh_buffer(self, ship, lod):
         key = ("mesh", ship.meshes[lod]) if ship.meshes else ("elite", ship.model_id)
@@ -257,8 +327,11 @@ class SpaceRenderer:
 
     def draw(self, scene, target, size, show_hud, hover=None):
         ctx = self.ctx
+        self.hud.resolution.output_size = size
         if self.source != scene.model_source:
             self._load_fleet(scene)
+        # Размер окна определяет камеру и видимую область. Другие пропорции
+        # внутреннего буфера меняют плотность выборок, а не форму изображения.
         vp = scene.view_projection(size[0] / size[1])
         if scene.model_source == "zx":
             target.use()
@@ -267,12 +340,25 @@ class SpaceRenderer:
             if self.zx is None:
                 self.zx = ZXScreen(ctx)
             self.zx.draw(scene, size, vp)
-            # HUD всегда относится к полному окну: размер текстуры и hitboxes
-            # не зависят от вписанной игровой области с её квадратными пикселями.
             ctx.viewport = (0, 0, *size)
-            if show_hud:
-                self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
-            return
+        else:
+            world = self._world_target
+            if world is None:
+                self._draw_world(scene, target, size, vp, show_hud)
+            else:
+                self._draw_world(scene, world.draw_frame, world.size, vp, show_hud)
+                if world.resolve_frame is not None:
+                    ctx.copy_framebuffer(world.resolve_frame, world.draw_frame)
+                target.use()
+                ctx.viewport = (0, 0, *size)
+                ctx.enable_only(0)
+                world.texture.use(0)
+                self._present.render(vertices=3)
+        if show_hud:
+            self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
+
+    def _draw_world(self, scene, target, size, vp, show_hud):
+        ctx = self.ctx
         planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
         planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
         focal = size[1] * np.linalg.norm(vp[1, :3])
@@ -318,12 +404,14 @@ class SpaceRenderer:
                     mesh.vao.render(first=first, vertices=count)
             else:
                 mesh.vao.render()
-        if show_hud:
-            self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
 
     def release(self):
         if self.zx is not None:
             self.zx.release()
+        if self._world_target is not None:
+            self._world_target.release()
+        self._present.release()
+        self._present_program.release()
         self.orbit.release()
         self.orbit_buf.release()
         self.orbit_program.release()
@@ -480,6 +568,8 @@ class SpaceControls:
         self._down_keys = set()
         self._flight_keys = set()
         self._view_keys = set()
+        self.prepare_resolution = None
+        self._resume_resolution_look = False
 
     def _start_look(self):
         if self.looking:
@@ -519,6 +609,7 @@ class SpaceControls:
         """Снять захват и удержания при потере фокуса и выходе из цикла."""
         self._release_motion()
         self._down_keys.clear()
+        self._resume_resolution_look = False
 
     def _drag_look(self, dx, dy):
         if self._presentation:
@@ -551,7 +642,68 @@ class SpaceControls:
             self.scene.fly()
             self._start_look()
 
+    def _toggle_resolution(self):
+        if self.hud.menu == "resolution":
+            self.hud.menu = None
+            if self._resume_resolution_look and self.scene.camera_mode == "flight":
+                self._start_look()
+            self._resume_resolution_look = False
+        else:
+            state = self.hud.resolution
+            state.highlighted = state.selected
+            state.error = None
+            self._resume_resolution_look = self.looking and self.scene.camera_mode == "flight"
+            self._release_motion()
+            self.show_hud = True
+            self.hud.menu = "resolution"
+
+    def _select_resolution(self, index):
+        state = self.hud.resolution
+        size = RENDER_RESOLUTIONS[index]
+        if index in state.unavailable:
+            state.error = f"{size[0]} × {size[1]} недоступно на этой видеокарте."
+            return
+        state.highlighted = index
+        state.error = self.prepare_resolution(size) if self.prepare_resolution is not None else None
+        if state.error is None:
+            state.selected = index
+            self._toggle_resolution()
+
+    def _resolution_key(self, key):
+        state = self.hud.resolution
+        if key == pygame.K_ESCAPE:
+            self._toggle_resolution()
+        elif key in (pygame.K_UP, pygame.K_DOWN):
+            options = [index for index in range(len(RENDER_RESOLUTIONS)) if index not in state.unavailable]
+            delta = 1 if key == pygame.K_DOWN else -1
+            state.highlighted = options[(options.index(state.highlighted) + delta) % len(options)]
+            state.error = None
+        elif key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self._select_resolution(state.highlighted)
+
+    def _tab_action(self, point, logical_size, drawable_size):
+        if not self.show_hud:
+            return None
+        action = self.hud.tab_at(self._pixel(point, logical_size, drawable_size))
+        if self.hud.menu == "resolution" and not (
+                action and (action == "menu_resolution" or action.startswith("resolution_"))):
+            return "close_menu"
+        return action
+
+    def _activate_tab(self, action):
+        if action == "menu_resolution":
+            self._toggle_resolution()
+        elif self.hud.menu == "resolution":
+            if action == "close_menu":
+                self._toggle_resolution()
+            else:
+                self._select_resolution(int(action.removeprefix("resolution_")))
+        else:
+            self._mode(action)
+
     def pick(self, point, logical_size, drawable_size):
+        if min(*logical_size, *drawable_size) <= 0:
+            return None
         if self.show_hud:
             pixel = self._pixel(point, logical_size, drawable_size)
             if self.hud.tab_at(pixel):
@@ -560,7 +712,11 @@ class SpaceControls:
                 marker = self.hud.marker_at(pixel)
                 if marker is not None:
                     return marker
-        return self.scene.pick(*point, *logical_size)
+        # Камера берёт пропорции drawable. Масштабируем логическую ось X
+        # на случай округлений Retina, сохраняя логический допуск для выбора.
+        width, height = logical_size
+        pick_width = height * drawable_size[0] / drawable_size[1]
+        return self.scene.pick(point[0] * pick_width / width, point[1], pick_width, height)
 
     @staticmethod
     def _pixel(point, logical_size, drawable_size):
@@ -626,6 +782,7 @@ class SpaceControls:
 
     def event(self, e, logical_size, drawable_size):
         scene = self.scene
+        resolution_menu = self.hud.menu == "resolution"
         if e.type == pygame.QUIT:
             self.release()
             return False
@@ -639,7 +796,12 @@ class SpaceControls:
             if e.key in self._down_keys or getattr(e, "repeat", False):
                 return True
             self._down_keys.add(e.key)
-            return self._key_down(e)
+            if e.key == pygame.K_g:
+                self._toggle_resolution()
+            elif resolution_menu:
+                self._resolution_key(e.key)
+            else:
+                return self._key_down(e)
         elif e.type == pygame.KEYUP:
             self._held_keys.pop(e.key, None)
             self._down_keys.discard(e.key)
@@ -647,14 +809,17 @@ class SpaceControls:
             self._view_keys.discard(e.key)
             if e.key in self._shift_keys and not self._down_keys.intersection(self._shift_keys):
                 self._view_keys.clear()
+        elif resolution_menu and (e.type == pygame.MOUSEWHEEL or
+                                  (e.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP) and e.button != 1)):
+            return True
         elif e.type == pygame.MOUSEWHEEL:
             if scene.camera_mode == "flight" or not self._presentation:
                 scene.zoom(getattr(e, "precise_y", e.y))
-        elif e.type == pygame.MOUSEBUTTONDOWN and scene.camera_mode == "flight" and e.button in (1, 3):
+        elif (e.type == pygame.MOUSEBUTTONDOWN and scene.camera_mode == "flight" and e.button in (1, 3)
+              and not resolution_menu):
             if self.looking:
                 return True
-            pixel = self._pixel(e.pos, logical_size, drawable_size)
-            action = self.hud.tab_at(pixel) if self.show_hud else None
+            action = self._tab_action(e.pos, logical_size, drawable_size)
             if action is None:
                 self._start_look()
             elif e.button == 1:
@@ -670,8 +835,7 @@ class SpaceControls:
         elif e.type == pygame.MOUSEMOTION and self.looking:
             self._drag_look(*e.rel)
         elif e.type == pygame.MOUSEBUTTONDOWN and e.button in (1, 3):
-            pixel = self._pixel(e.pos, logical_size, drawable_size)
-            action = self.hud.tab_at(pixel) if self.show_hud else None
+            action = self._tab_action(e.pos, logical_size, drawable_size)
             self.press = (e.button, e.pos, action)
             self.dragging = False
         elif e.type == pygame.MOUSEMOTION and self.press:
@@ -693,10 +857,9 @@ class SpaceControls:
             start_action = self.press[2]
             self.press = None
             if not self.dragging and e.button == 1:
-                pixel = self._pixel(e.pos, logical_size, drawable_size)
-                tab = self.hud.tab_at(pixel) if self.show_hud else None
+                tab = self._tab_action(e.pos, logical_size, drawable_size)
                 if tab and tab == start_action:
-                    self._mode(tab)
+                    self._activate_tab(tab)
                 elif not self._presentation and not (tab or start_action):
                     ident = self.pick(e.pos, logical_size, drawable_size)
                     if ident is not None:
@@ -897,6 +1060,7 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             return
 
         controls = (FlybyControls if mode == "flyby" else SpaceControls)(scene, renderer.hud, show_hud)
+        controls.prepare_resolution = renderer.prepare_resolution
         clock = pygame.time.Clock()
         while True:
             seconds = clock.tick(60) / 1000

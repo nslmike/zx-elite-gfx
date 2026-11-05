@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pygame
 
@@ -20,11 +20,7 @@ class FlightProfileHUDTest(unittest.TestCase):
         self.addCleanup(pygame.font.quit)
 
     def hud(self, size=(1360, 820), ratio=1):
-        hud = SpaceHUD.__new__(SpaceHUD)
-        hud.texture, hud.size, hud.key = None, None, None
-        hud.ctx = SimpleNamespace(texture=lambda *_: Mock(), enable_only=Mock())
-        hud.quad = Mock()
-        hud.tabs, hud.markers, hud.options, hud.menu = {}, {}, {}, None
+        hud = SpaceHUD(MagicMock())
         hud._resize(size, ratio)
         return hud
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pygame
 
@@ -268,11 +268,7 @@ class FlybyHUDTest(unittest.TestCase):
         self.addCleanup(pygame.font.quit)
 
     def hud(self, size=(1360, 820), *, watch_text=False):
-        hud = SpaceHUD.__new__(SpaceHUD)
-        hud.texture, hud.size, hud.key = None, None, None
-        hud.ctx = SimpleNamespace(texture=lambda *_: Mock(), enable_only=Mock())
-        hud.quad = Mock()
-        hud.tabs, hud.markers, hud.options, hud.menu = {}, {}, {}, None
+        hud = SpaceHUD(MagicMock())
         hud._resize(size)
         if watch_text:
             hud.mono, hud.text = Mock(wraps=hud.mono), Mock(wraps=hud.text)
@@ -298,7 +294,8 @@ class FlybyHUDTest(unittest.TestCase):
                             hud._resize(size)
                             scene.model_source, scene.camera_mode, scene.paused = source, mode, paused
                             bounds = hud._paint(scene, None, None).get_rect()
-                            actions = {"toggle_flight", "cycle_source", "cycle_textures", "menu_credits"}
+                            actions = {"toggle_flight", "cycle_source", "cycle_textures",
+                                       "menu_credits", "menu_resolution"}
                             if mode == "flyby":
                                 actions |= {"toggle_pause", "scrub_back", "scrub_forward", "toggle_auto"}
                             else:
@@ -311,7 +308,8 @@ class FlybyHUDTest(unittest.TestCase):
                                 self.assertFalse(any(rect.colliderect(other) for key, other in hud.options.items()
                                                      if key != action))
                             if size == (1360, 820):
-                                self.assertEqual(len({rect.top for rect in hud.options.values()}), 1)
+                                self.assertEqual(len({rect.top for action, rect in hud.options.items()
+                                                      if action != "menu_resolution"}), 1)
                             elif size[0] == 320:
                                 self.assertLess(hud.options["toggle_flight"].top, hud.options["cycle_source"].top)
                             hud.menu = "credits"
@@ -406,7 +404,7 @@ class FlybyHUDTest(unittest.TestCase):
             hud.draw(scene, hud.size, None, None)
         self.assertEqual(set(hud.tabs), {"overview", "inspect", "flight"})
         self.assertEqual(set(hud.options), {"menu_models", "menu_textures", "menu_credits",
-                                            "cycle_flight_profile"})
+                                            "menu_resolution", "cycle_flight_profile"})
 
 
 if __name__ == "__main__":

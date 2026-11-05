@@ -7,6 +7,7 @@ import numpy as np
 import pygame
 
 from .space_assets import FLYBY_SOURCE_NAMES, SOURCE_NAMES, TEXTURE_NAMES
+from .space_resolution import RENDER_RESOLUTIONS, RenderResolution
 
 
 _INK = (231, 236, 235)
@@ -49,6 +50,7 @@ class SpaceHUD:
         self.markers = {}
         self.menu = None
         self.options = {}
+        self.resolution = RenderResolution()
 
     def _resize(self, size, pixel_ratio=1.0):
         if self.texture is not None:
@@ -70,7 +72,8 @@ class SpaceHUD:
 
     def tab_at(self, point):
         for action, rect in self.options.items():
-            if rect.collidepoint(point):
+            resolution_action = action.startswith("resolution_") or action == "close_menu"
+            if resolution_action == (self.menu == "resolution") and rect.collidepoint(point):
                 return action
         if self.menu:
             return "close_menu"
@@ -179,12 +182,25 @@ class SpaceHUD:
                                  (0, y), (w, y))
         zx = scene.model_source == "zx"
         accent = (235, 245, 255) if zx else _GOLD
-        label("E L I T E", pad, 18*s, self.mono, accent)
+        logo = "E L I T E"
+        label(logo, pad, 18*s, self.mono, accent)
         mode_title = "СВОБОДНЫЙ ПОЛЁТ" if flying else "АВТОПРОЛЁТ"
         escape = "курсор" if flying else "выход"
         caption = (f"{mode_title}     H  интерфейс  /  Esc  {escape}" if w > 580*s else
                    f"H интерфейс / Esc {escape}")
-        label(caption, w - pad - self.mono.size(caption)[0], 18*s, self.mono, _MUTED)
+        caption_x = w - pad - self.mono.size(caption)[0]
+        label(caption, caption_x, 18*s, self.mono, _MUTED)
+        resolution_button = ("menu_resolution", "G", "Разрешение")
+        resolution_caption = "  ".join(resolution_button[1:])
+        resolution_rect = pygame.Rect(pad+self.mono.size(logo)[0]+round(12*s), round(11*s),
+                                     self.text.size(resolution_caption)[0]+round(20*s), round(25*s))
+        resolution_on_top = resolution_rect.right + round(6*s) <= caption_x
+        if resolution_on_top:
+            self.options["menu_resolution"] = resolution_rect
+            pygame.draw.rect(surf, (12, 23, 31, 188), resolution_rect,
+                             border_radius=max(1, round(3*s)))
+            label(resolution_caption, resolution_rect.left+10*s, resolution_rect.top+4*s,
+                  color=accent if self.menu == "resolution" else _MUTED)
         paused = scene.paused
         if flying:
             status = f"РУЧНОЙ ПОЛЁТ · маршрут на паузе · {self._flyby_clock(scene.elapsed)}"
@@ -220,7 +236,10 @@ class SpaceHUD:
                    (f"Текстуры · {textures}" if wide else textures)))
         if not flying:
             models += (("toggle_auto", "A", f"Авто · {auto}"),)
-        groups = (transport, models + (("menu_credits", "I", "Авторы"),))
+        models += (("menu_credits", "I", "Авторы"),)
+        if not resolution_on_top:
+            models += (resolution_button,)
+        groups = (transport, models)
         gap, bh = round(6*s), round(28*s)
         group_gap = round(22*s)
         prepared = []
@@ -257,6 +276,7 @@ class SpaceHUD:
                 rect = pygame.Rect(x, y, width, bh)
                 self.options[action] = rect
                 active = ((action == "menu_credits" and self.menu == "credits") or
+                          (action == "menu_resolution" and self.menu == "resolution") or
                           (action == "toggle_pause" and paused))
                 pygame.draw.rect(surf, (12, 23, 31, 188), rect, border_radius=max(1, round(3*s)))
                 if action in ("cycle_source", "toggle_flight", "cycle_flight_profile"):
@@ -278,6 +298,8 @@ class SpaceHUD:
         label(source_title, pad, title_y - 19*s, self.mono, _MUTED, width=w-2*pad)
         if self.menu == "credits":
             self._flyby_credits(surf, scene, ship, label, pad, title_y - 30*s)
+        elif self.menu == "resolution":
+            self._paint_resolution(surf, zx=zx)
         return surf
 
     def _flyby_credits(self, surf, scene, ship, label, pad, bottom):
@@ -435,6 +457,74 @@ class SpaceHUD:
         self._source_menu(surf, scene, ship, label, pad, int(61*s))
         return surf
 
+    def _paint_resolution(self, surf, *, zx=False):
+        w, h = self.size
+        s = self.s
+        state = self.resolution
+        self.options.clear()
+        margin = round(11*s)
+        pad, gap = round(16*s), round(5*s)
+        width = min(w-2*margin, round(400*s))
+        help_text = ("Каркас ZX · 256 × 128. Выбор для цветной сцены." if zx else
+                     "Больше пикселей — чётче сцена.")
+        help_rows = self._hint_rows((state.error or help_text,), width-2*pad, self.text)
+        text_height = self.text.get_height()
+        header = self.brand.get_height() + max(2, len(help_rows))*text_height + 3*gap
+        footer = self.symbols.get_height() + 2*gap
+        count = len(RENDER_RESOLUTIONS)
+        row_height = max(1, min(round(27*s), (h-2*(margin+pad)-header-footer) // count))
+        panel = pygame.Rect(0, 0, width, 2*pad + header + count*row_height + footer)
+        panel.center = surf.get_rect().center
+        radius = max(1, round(4*s))
+        pygame.draw.rect(surf, (12, 23, 31, 250), panel, border_radius=radius)
+        pygame.draw.line(surf, _GOLD, panel.topleft, panel.topright)
+
+        left, right = panel.left + pad, panel.right - pad
+        clip = surf.get_clip()
+        surf.set_clip(panel)
+
+        def label(text, x, y, font, color=_INK, *, right=False):
+            img = font.render(text, True, color)
+            surf.blit(img, (x-img.get_width() if right else x, y))
+
+        y = panel.top + pad
+        label("Разрешение рендера", left, y, self.brand)
+        help_y = y + self.brand.get_height() + gap
+        for index, row in enumerate(help_rows):
+            for text, x in row:
+                label(text, left+x, help_y+index*text_height, self.text, _GOLD if state.error else _MUTED)
+        y += header
+        for index, size in enumerate(RENDER_RESOLUTIONS):
+            row = pygame.Rect(left, y, right-left, row_height)
+            self.options[f"resolution_{index}"] = row
+            selected, highlighted = index == state.selected, index == state.highlighted
+            disabled = index in state.unavailable
+            fill = (36, 54, 65) if highlighted else (19, 35, 44)
+            pygame.draw.rect(surf, fill, row, border_radius=radius)
+            if highlighted:
+                pygame.draw.line(surf, _GOLD, row.topleft, (row.left, row.bottom-1), max(1, round(2*s)))
+            if size is None:
+                width_px, height_px = state.output_size or self.size
+                caption = f"Нативное · {width_px} × {height_px}"
+            else:
+                width_px, height_px = size
+                caption = f"{height_px}p · {width_px} × {height_px}"
+            color = _GOLD if selected else (135, 155, 164) if disabled else _INK
+            y_text = row.centery - text_height//2
+            label(caption, left+2*gap, y_text, self.text, color)
+            status = "Текущее" if selected else "Недоступно" if disabled else ""
+            if status:
+                label(status, right-2*gap, y_text, self.text, color, right=True)
+            y = row.bottom
+
+        hint_y = y + gap
+        label("↑↓ · Enter  применить", left, hint_y, self.symbols, _MUTED)
+        close = "G / Esc  закрыть"
+        close_width = self.symbols.size(close)[0]
+        self.options["close_menu"] = pygame.Rect(right-close_width-gap, y, close_width+2*gap, footer)
+        label(close, right, hint_y, self.symbols, _INK, right=True)
+        surf.set_clip(clip)
+
     def _source_menu(self, surf, scene, ship, label, pad, y):
         """Селекторы остаются на карте и в осмотре. Карточка I показывает полные условия."""
         s = self.s
@@ -446,6 +536,7 @@ class SpaceHUD:
                    ("credits", "I", "", "Авторы"))
         if scene.camera_mode == "flight":
             buttons += (("flight_profile", "C", "Схема", self._flight_profile_name(scene)),)
+        buttons += (("resolution", "G", "", "Разрешение"),)
         for key, hotkey, title, value in buttons:
             caption = f"{hotkey}  {title} · {value}" if title and w >= 740*s else f"{hotkey}  {value}"
             width = min(w-2*pad, self.text.size(caption)[0] + round((32 if key in ("models", "textures") else 19)*s))
@@ -460,6 +551,9 @@ class SpaceHUD:
                 tip = rect.right - 11*s
                 pygame.draw.lines(surf, _MUTED, False, ((tip-3*s, y+12*s), (tip, y+15*s), (tip+3*s, y+12*s)))
             x = rect.right + round(5*s)
+        if self.menu == "resolution":
+            self._paint_resolution(surf)
+            return
         if not self.menu:
             return
         anchor = self.options["menu_" + self.menu]
@@ -507,9 +601,14 @@ class SpaceHUD:
         profile = getattr(scene, "flight_profile", "modern")
         flight = ((profile, self._flight_speed_text(scene) if profile == "elite" else None)
                   if scene.camera_mode == "flight" else None)
+        resolution = None
+        if self.menu == "resolution":
+            state = self.resolution
+            resolution = (state.selected, state.highlighted, frozenset(state.unavailable), state.error,
+                          state.output_size)
         key = (size, pixel_ratio, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
-               playback, flight,
+               playback, flight, resolution,
                vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)
