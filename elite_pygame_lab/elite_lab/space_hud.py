@@ -118,6 +118,11 @@ class SpaceHUD:
                         "Q / E  крен", "Стрелки / мышь  взгляд")
         return controls + ("Esc  курсор · щелчок  захват",)
 
+    @staticmethod
+    def _effects_hint(scene):
+        state = "вкл" if getattr(scene, "effects_enabled", False) else "выкл"
+        return f"B  огни флота · {state}"
+
     def _hint_rows(self, hints, width, font=None):
         """Переносим команды целиком, а слишком длинную подсказку — по словам."""
         font = font or self.mono
@@ -188,6 +193,10 @@ class SpaceHUD:
         escape = "курсор" if flying else "выход"
         caption = (f"{mode_title}     H  интерфейс  /  Esc  {escape}" if w > 580*s else
                    f"H интерфейс / Esc {escape}")
+        if not zx:
+            with_effects = self._effects_hint(scene) + "  /  " + caption
+            if self.mono.size(with_effects)[0] <= w - 2 * pad - self.mono.size(logo)[0] - 12 * s:
+                caption = with_effects
         caption_x = w - pad - self.mono.size(caption)[0]
         label(caption, caption_x, 18*s, self.mono, _MUTED)
         resolution_button = ("menu_resolution", "G", "Разрешение")
@@ -421,6 +430,7 @@ class SpaceHUD:
                         "O  вся карта", "H  интерфейс"),
             "flight": self._flight_hints(scene) + ("O  карта", "H  интерфейс"),
         }[mode]
+        hints += (self._effects_hint(scene),)
         hint_font = self.mono if mode == "flight" else self.text
         hint_rows = self._hint_rows(hints, w-2*pad, hint_font)
         hints_y = h - round((37 + (len(hint_rows)-1)*20)*s)
@@ -608,7 +618,7 @@ class SpaceHUD:
                           state.output_size)
         key = (size, pixel_ratio, is_flyby, scene.camera_mode, scene.selected, hover, scene.model_source, scene.texture_source,
                self.menu, getattr(scene, "auto_sources", None), getattr(scene, "empty_slot", False),
-               playback, flight, resolution,
+               playback, flight, resolution, getattr(scene, "effects_enabled", False),
                vp.tobytes() if scene.camera_mode == "overview" else None)
         if self.key != key:
             surface = self._paint(scene, hover, vp)

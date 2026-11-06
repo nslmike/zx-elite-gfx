@@ -75,7 +75,6 @@ class FlybyScene(SpaceScene):
         if not isfinite(interval) or interval < 0:
             raise ValueError("Интервал смены источников должен быть конечным и неотрицательным")
         self.elapsed = 0.0
-        self.animation_elapsed = 0.0
         self.paused = False
         self.source_interval = interval
         self.auto_sources = interval > 0

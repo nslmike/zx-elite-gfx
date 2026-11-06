@@ -12,6 +12,7 @@ import pygame
 from .space_hud import SpaceHUD
 from .space_look import SUN_DIRECTION, SpaceLook
 from .space_assets import AssetCatalog, AssetError
+from .space_effects import SpaceBloom, configure_ship_effects, ship_effects_profile
 from .space_resolution import RENDER_RESOLUTIONS
 from .space_scene import SpaceScene
 from .space_zx import SpaceZXRenderer, ZX_SIZE
@@ -24,8 +25,13 @@ in vec3 position;
 void main() { gl_Position = vp * vec4(position, 1.0); }
 """
 _ORBIT_FRAGMENT = """#version 330
+uniform bool linear_output;
 out vec4 color;
-void main() { color = vec4(0.27, 0.38, 0.42, 0.48); }
+void main() {
+    // Яркость разметки на тёмном фоне совпадает после кривой вывода.
+    vec3 ink = linear_output ? vec3(0.0434, 0.0701, 0.0805) : vec3(0.27, 0.38, 0.42);
+    color = vec4(ink, 0.48);
+}
 """
 _DEPTH_VERTEX = """#version 330
 uniform mat4 light_mvp;
@@ -112,33 +118,53 @@ class ZXScreen:
 class _RenderTarget:
     """Буфер мира и текстура того же размера для разрешения MSAA."""
 
-    def __init__(self, ctx, size):
+    def __init__(self, ctx, size, *, linear=False, scaled=False, samples=0):
         self.size = size
+        self.linear = linear
+        self.scaled = scaled
         self.resources = []
-        samples = min(4, ctx.max_samples)
+        self.samples = samples
         try:
-            self.texture = ctx.texture(size, 4)
+            self.texture = ctx.texture(size, 4, dtype="f2") if linear else ctx.texture(size, 4)
             self.resources.append(self.texture)
             self.texture.filter = (moderngl.LINEAR, moderngl.LINEAR)
             self.texture.repeat_x = self.texture.repeat_y = False
             depth = ctx.depth_renderbuffer(size, samples=samples)
             self.resources.append(depth)
             if samples:
-                color = ctx.renderbuffer(size, 4, samples=samples)
+                color = (ctx.texture(size, 4, samples=samples, dtype="f2") if linear
+                         else ctx.renderbuffer(size, 4, samples=samples))
                 self.resources.append(color)
                 self.resolve_frame = ctx.framebuffer(self.texture)
                 self.resources.append(self.resolve_frame)
             else:
                 color = self.texture
                 self.resolve_frame = None
+            self.color = color
             self.draw_frame = ctx.framebuffer(color, depth)
             self.resources.append(self.draw_frame)
+            self.bloom_frames = ()
+            self.presentation = None
+            if linear:
+                reduced = tuple((n + 3) // 4 for n in size)
+                self.bloom_frames = tuple(self._texture_frame(ctx, reduced, "f2") for _ in range(2))
+                if scaled:
+                    self.presentation = self._texture_frame(ctx, size, "f1")
             error = ctx.error
             if error != "GL_NO_ERROR":
                 raise moderngl.Error(error)
         except Exception:
             self.release()
             raise
+
+    def _texture_frame(self, ctx, size, dtype):
+        texture = ctx.texture(size, 4, dtype=dtype)
+        self.resources.append(texture)
+        texture.filter = (moderngl.LINEAR, moderngl.LINEAR)
+        texture.repeat_x = texture.repeat_y = False
+        frame = ctx.framebuffer(texture)
+        self.resources.append(frame)
+        return frame
 
     def release(self):
         for resource in reversed(self.resources):
@@ -154,7 +180,11 @@ class SpaceRenderer:
         self.look = SpaceLook(ctx)
         self.hud = SpaceHUD(ctx)
         self.zx = None
+        self._bloom = None
         self._world_target = None
+        self._internal_size = None
+        self._effects_active = False
+        self._failed_target = None
         self._present_program = ctx.program(vertex_shader=_SCREEN_VERTEX, fragment_shader=_PRESENT_FRAGMENT)
         self._present_program["frame"].value = 0
         self._present = ctx.vertex_array(self._present_program, [])
@@ -189,17 +219,29 @@ class SpaceRenderer:
 
     def prepare_resolution(self, size):
         """Сменить буфер только после успешного создания нового."""
+        error = self._replace_world_target(size, self._effects_active, scaled=size is not None)
+        if error is None:
+            self._internal_size = size
+            self._failed_target = None
+        return error
+
+    def _replace_world_target(self, size, linear, scaled, samples=None):
         old = self._world_target
-        if size == getattr(old, "size", None):
-            return None
-        try:
-            if size is not None:
+        target = None
+        if size is not None:
+            maximum = min(4, self.ctx.max_samples)
+            samples = maximum if samples is None else min(maximum, samples)
+            if linear:
+                samples = min(samples, self.ctx.info.get("GL_MAX_COLOR_TEXTURE_SAMPLES", samples))
+            if old is not None and (old.size, old.linear, old.scaled, old.samples) == (size, linear, scaled, samples):
+                return None
+            try:
                 self.ctx.clear_errors()
-            target = _RenderTarget(self.ctx, size) if size is not None else None
-        except (moderngl.Error, MemoryError) as exc:
-            self.ctx.clear_errors()
-            print(f"OpenGL · буфер {size[0]}×{size[1]} · {exc}", file=sys.stderr)
-            return f"Не удалось включить {size[0]} × {size[1]}. Выберите другой размер."
+                target = _RenderTarget(self.ctx, size, linear=linear, scaled=scaled, samples=samples)
+            except (moderngl.Error, MemoryError) as exc:
+                self.ctx.clear_errors()
+                print(f"OpenGL · буфер {size[0]}×{size[1]} · {exc}", file=sys.stderr)
+                return f"Не удалось включить {size[0]} × {size[1]}. Выберите другой размер."
         self._world_target = target
         if old is not None:
             old.release()
@@ -225,9 +267,14 @@ class SpaceRenderer:
 
     def _load_fleet(self, scene):
         if scene.model_source == "zx":
+            self._effects_active = False
+            if self._world_target is not None and self._world_target.linear:
+                self._replace_world_target(None, linear=False, scaled=False)
+                self._failed_target = None
             # Каркас берётся из исходных таблиц; ни один треугольный VBO
             # не нужен для его рёбер. Цветные ресурсы остаются в общем кеше M.
             self.meshes = []
+            self._effect_profiles = {}
             self._mesh_keys = set()
             self._shadow_objects = self._shadow_signature = None
             self.source = scene.model_source
@@ -251,6 +298,8 @@ class SpaceRenderer:
         self._mesh_keys = used
         self._trim_meshes(used)
         self.meshes = meshes
+        self._effect_profiles = {index: profile for index, ship in enumerate(scene.ships)
+                                 if (profile := ship_effects_profile(ship))}
         self._shadow_objects = self._shadow_signature = None
         self.source = scene.model_source
 
@@ -342,22 +391,46 @@ class SpaceRenderer:
             self.zx.draw(scene, size, vp)
             ctx.viewport = (0, 0, *size)
         else:
+            self._effects_active = bool(self._effect_profiles and getattr(scene, "effects_enabled", False))
+            internal = self._internal_size or (size if self._effects_active else None)
+            scaled = self._internal_size is not None
+            samples = None
+            if self._effects_active and not scaled:
+                # Обёртка framebuffer 0 на macOS сообщает 1 даже для
+                # четырех выборок; настоящий режим окна знает SDL.
+                samples = getattr(ctx, "_window_samples", None) if target is ctx.screen else target.samples
+            request = (internal, self._effects_active, scaled, samples)
+            if request != self._failed_target:
+                error = self._replace_world_target(*request)
+                self._failed_target = request if error else None
             world = self._world_target
-            if world is None:
+            if world is None or (world.linear and world.size != size and world.presentation is None):
                 self._draw_world(scene, target, size, vp, show_hud)
             else:
-                self._draw_world(scene, world.draw_frame, world.size, vp, show_hud)
+                linear = world.linear and self._effects_active
+                self._draw_world(scene, world.draw_frame, world.size, vp, show_hud, linear=linear)
                 if world.resolve_frame is not None:
                     ctx.copy_framebuffer(world.resolve_frame, world.draw_frame)
-                target.use()
-                ctx.viewport = (0, 0, *size)
-                ctx.enable_only(0)
-                world.texture.use(0)
-                self._present.render(vertices=3)
+                if linear:
+                    if self._bloom is None:
+                        self._bloom = SpaceBloom(ctx, _SCREEN_VERTEX)
+                    presentation = world.presentation if world.size != size else None
+                    self._bloom.draw(world, presentation or target, world.size)
+                    if presentation is not None:
+                        self._present_frame(presentation.color_attachments[0], target, size)
+                else:
+                    self._present_frame(world.texture, target, size)
         if show_hud:
             self.hud.draw(scene, size, hover, vp, pixel_ratio=self.pixel_ratio)
 
-    def _draw_world(self, scene, target, size, vp, show_hud):
+    def _present_frame(self, texture, target, size):
+        target.use()
+        self.ctx.viewport = (0, 0, *size)
+        self.ctx.enable_only(0)
+        texture.use(0)
+        self._present.render(vertices=3)
+
+    def _draw_world(self, scene, target, size, vp, show_hud, *, linear=False):
         ctx = self.ctx
         planes = np.vstack((vp[3] + vp[:3], vp[3] - vp[:3]))
         planes /= np.linalg.norm(planes[:, :3], axis=1)[:, None]
@@ -372,21 +445,26 @@ class SpaceRenderer:
         self._update_shadow(scene, visible)
         target.use()
         ctx.viewport = (0, 0, *size)
-        target.clear(0.01, 0.02, 0.03, 1.0, depth=1.0, viewport=ctx.viewport)
+        target.clear(0.01, 0.02, 0.03, 0.0 if linear else 1.0, depth=1.0, viewport=ctx.viewport)
         eye = scene.eye
-        self.look.draw_sky(np.linalg.inv(vp), eye)
+        self.look.draw_sky(np.linalg.inv(vp), eye, linear=linear)
         if show_hud and scene.camera_mode == "overview":
             ctx.enable_only(moderngl.BLEND)
-            ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+            blend = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
+            # Сохраняем нулевую маску свечения неба под линиями разметки.
+            ctx.blend_func = (*blend, moderngl.ZERO, moderngl.ONE) if linear else blend
+            self.orbit_program["linear_output"].value = linear
             self.orbit_program["vp"].write(_matrix(vp))
             self.orbit.render(mode=moderngl.LINES)
         ctx.enable_only(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
         ctx.front_face = "ccw"
         ctx.cull_face = "back"
         hull = self.look.hull
+        hull["u_linear_output"].value = linear
         self.shadow.use(location=2)
         hull["u_view_proj"].write(_matrix(vp))
         hull["u_eye"].value = tuple(eye)
+        elapsed = getattr(scene, "animation_elapsed", 0.0)
         for index, lod in visible:
             ship, obj = scene.ships[index], scene.objects[index]
             mesh = self.meshes[index][lod]
@@ -394,6 +472,8 @@ class SpaceRenderer:
             hull["u_model"].write(_matrix(obj.matrix))
             self.look.configure_model(obj.model_id, imported=bool(ship.meshes), authored=authored,
                                       cross_bitangent=ship.cross_bitangent)
+            if linear:
+                configure_ship_effects(hull, obj.model_id, self._effect_profiles.get(index), elapsed)
             if mesh.parts:
                 for slot, first, count in mesh.parts:
                     material = ship.materials[slot]
@@ -410,6 +490,8 @@ class SpaceRenderer:
             self.zx.release()
         if self._world_target is not None:
             self._world_target.release()
+        if self._bloom is not None:
+            self._bloom.release()
         self._present.release()
         self._present_program.release()
         self.orbit.release()
@@ -538,6 +620,7 @@ def _window_context():
             if not samples:
                 raise
     ctx = moderngl.create_context(require=330)
+    ctx._window_samples = pygame.display.gl_get_attribute(pygame.GL_MULTISAMPLESAMPLES)
     ctx._window_drawable = _window_drawable_query()
     _, size = _window_sizes(ctx)
     if size is not None:
@@ -759,6 +842,8 @@ class SpaceControls:
         elif e.key == pygame.K_t:
             self.hud.menu = None
             scene.cycle_textures()
+        elif e.key == pygame.K_b and scene.model_source != "zx":
+            scene.effects_enabled = not getattr(scene, "effects_enabled", False)
         elif e.key == pygame.K_i:
             self.show_hud = True
             self._mode("menu_credits")
@@ -997,7 +1082,7 @@ def _save(frame, size, path):
 
 
 def run_space(model_id, screenshot, headless, show_hud, model_source="elite", texture_source="author", *,
-              mode="space", source_interval=8.0, at=None):
+              mode="space", source_interval=8.0, at=None, effects_enabled=True):
     catalog = AssetCatalog()
     ships = catalog.classic if mode == "flyby" and model_source == "zx" else catalog.fleet(model_source)
     model_count = len(ships)
@@ -1032,6 +1117,7 @@ def run_space(model_id, screenshot, headless, show_hud, model_source="elite", te
             scene = SpaceScene(model_source=model_source, texture_source=texture_source, catalog=catalog)
             if model_id is not None:
                 scene.select(model_id)
+        scene.effects_enabled = effects_enabled
         renderer = SpaceRenderer(ctx, scene)
         if mode == "flyby" and not headless and not screenshot:
             renderer.warm_sources(scene)

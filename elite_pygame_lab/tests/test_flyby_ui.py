@@ -41,14 +41,15 @@ class FlybyCLITest(unittest.TestCase):
         with patch.dict(sys.modules, {module.__name__: module}):
             main(["--mode", "flyby", "--model", "9", "--model-source", "griff",
                   "--texture-source", "procedural", "--source-interval", "0",
-                  "--at", "24.5", "--screenshot", "/tmp/elite-flyby-test.png", "--no-hud"])
+                  "--at", "24.5", "--screenshot", "/tmp/elite-flyby-test.png", "--no-hud", "--no-effects"])
             module.run_space.assert_called_once_with(
                 9, Path("/tmp/elite-flyby-test.png"), False, False, "griff", "procedural",
-                mode="flyby", source_interval=0.0, at=24.5)
+                mode="flyby", source_interval=0.0, at=24.5, effects_enabled=False)
             module.run_space.reset_mock()
             main(["--mode", "space", "--headless"])
             module.run_space.assert_called_once_with(
-                None, None, True, True, "elite", "author", mode="space", source_interval=8.0, at=None)
+                None, None, True, True, "elite", "author", mode="space", source_interval=8.0, at=None,
+                effects_enabled=True)
 
     def test_default_and_explicit_zx_are_flyby_only_and_at_keeps_the_initial_source(self):
         module = ModuleType("elite_lab.space_viewer")
@@ -56,12 +57,14 @@ class FlybyCLITest(unittest.TestCase):
         with patch.dict(sys.modules, {module.__name__: module}):
             main(["--mode", "flyby", "--headless", "--at", "16"])
             module.run_space.assert_called_once_with(
-                None, None, True, True, "zx", "author", mode="flyby", source_interval=8.0, at=16.0)
+                None, None, True, True, "zx", "author", mode="flyby", source_interval=8.0, at=16.0,
+                effects_enabled=True)
             module.run_space.reset_mock()
             main(["--mode", "flyby", "--headless", "--model-source", "zx", "--model", "20",
                   "--source-interval", "0", "--at", "72"])
             module.run_space.assert_called_once_with(
-                20, None, True, True, "zx", "author", mode="flyby", source_interval=0.0, at=72.0)
+                20, None, True, True, "zx", "author", mode="flyby", source_interval=0.0, at=72.0,
+                effects_enabled=True)
 
     def test_source_listing_explains_the_six_step_order_and_only_one_griff(self):
         out = StringIO()

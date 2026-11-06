@@ -9,6 +9,23 @@ uniform bool u_cross_bitangent;
 uniform bool u_cobra_finishes;
 uniform bool u_classic_finishes;
 uniform bool u_refined_materials;
+uniform bool u_linear_output;
+uniform int u_effects_profile;
+uniform vec2 u_engine_pulse;
+uniform float u_beacon_level;
+uniform vec3 u_drive_tint;
+// Лимит соответствует MAX_LENSES в space_fleet_lights.py.
+const int MAX_LENSES = 4;
+uniform int u_lens_count;
+uniform vec4 u_lens_anchor[MAX_LENSES];
+uniform vec4 u_lens_normal[MAX_LENSES];
+uniform vec4 u_lens_tangent[MAX_LENSES];
+uniform vec4 u_lens_radiance[MAX_LENSES];
+uniform bool u_panel_active;
+uniform vec4 u_panel_split;
+uniform float u_panel_min_z;
+uniform vec3 u_panel_first;
+uniform vec3 u_panel_second;
 uniform vec4 u_finish_layout;
 uniform vec2 u_finish_response;
 uniform vec2 u_damage_profile;
@@ -104,6 +121,74 @@ vec3 display_color(vec3 color) {
     color = (color * (2.51 * color + 0.03)) /
             (color * (2.43 * color + 0.59) + 0.14);
     return pow(clamp(color, 0.0, 1.0), vec3(1.0 / 2.2));
+}
+
+// Прямоугольная линза на фасете. Покрытие вычисляется по площади пикселя,
+// чтобы лампа уходила вдаль плавно, даже если она уже меньше пикселя.
+float lens(vec2 position, vec2 footprint, vec2 center, vec2 radius) {
+    vec2 p = abs(position - center);
+    vec2 span = min(p + footprint, radius) - max(p - footprint, -radius);
+    vec2 coverage = clamp(span / (2.0 * footprint), 0.0, 1.0);
+    return coverage.x * coverage.y;
+}
+
+vec3 fixture(vec2 p, vec2 footprint, vec2 center, vec2 radius, vec3 tint, inout vec3 hull_color) {
+    float bezel = lens(p, footprint, center, radius + vec2(0.005));
+    hull_color *= 1.0 - 0.72 * bezel;
+    float core = lens(p, footprint, center, radius * vec2(0.64, 0.42));
+    return tint * lens(p, footprint, center, radius) + mix(tint, vec3(1.8), 0.45) * core * 0.32;
+}
+
+vec3 fixture_radiance(inout vec3 hull_color) {
+    vec2 p = vec2(abs(v_local.x), v_local.z);
+    vec2 footprint = max(0.5 * fwidth(v_local.xz), vec2(0.0001));
+    if (u_effects_profile == 1) {
+        // Нос Cobra направлен по +Z: +X — левый борт, −X — правый.
+        vec3 navigation = v_local.x > 0.0 ? vec3(1.95, 0.13, 0.06) : vec3(0.09, 1.65, 0.35);
+        vec3 nav = fixture(p, footprint, vec2(0.775, -0.238), vec2(0.024, 0.012), navigation, hull_color);
+        vec3 forward = fixture(p, footprint, vec2(0.30, 0.223), vec2(0.020, 0.011),
+                               vec3(0.9, 1.45, 2.15), hull_color);
+        return nav + u_beacon_level * forward;
+    }
+    vec3 work = fixture(p, footprint, vec2(0.385, -0.32), vec2(0.015, 0.027),
+                        vec3(1.95, 1.20, 0.45), hull_color);
+    if (v_local_normal.y > 0.7) {
+        work += u_beacon_level * fixture(v_local.xz, footprint, vec2(0.075, -0.25), vec2(0.017, 0.022),
+                                         vec3(2.55, 0.69, 0.10), hull_color);
+    }
+    return work;
+}
+
+vec3 fleet_fixture_radiance(inout vec3 hull_color) {
+    vec3 emitter = vec3(0.0);
+    vec3 dx = dFdx(v_local), dy = dFdy(v_local);
+    for (int i = 0; i < u_lens_count; ++i) {
+        vec3 normal = u_lens_normal[i].xyz;
+        vec3 offset = v_local - u_lens_anchor[i].xyz;
+        // Отсекаем чужие стенки и детали над панелью даже при общей проекции.
+        if (dot(v_local_normal, normal) < 0.999 || abs(dot(offset, normal)) > 0.0005)
+            continue;
+        vec3 tangent = u_lens_tangent[i].xyz;
+        vec3 cross_axis = cross(normal, tangent);
+        vec2 p = vec2(dot(offset, tangent), dot(offset, cross_axis));
+        vec2 footprint = abs(vec2(dot(dx, tangent), dot(dx, cross_axis))) +
+                         abs(vec2(dot(dy, tangent), dot(dy, cross_axis)));
+        footprint = max(0.5 * footprint, vec2(0.0001));
+        vec2 radius = vec2(u_lens_anchor[i].w, u_lens_normal[i].w);
+        vec4 light = u_lens_radiance[i];
+        if (u_lens_tangent[i].w > 0.5) {
+            // Узкая утопленная решётка маневрового узла.
+            hull_color *= 1.0 - 0.82 * lens(p, footprint, vec2(0.0), radius + vec2(0.005));
+            float throat = lens(p, footprint, vec2(0.0), radius * vec2(0.86, 0.69));
+            float slot = p.x * 2.5 / radius.x;
+            float aa = clamp(footprint.x * 2.5 / radius.x, 0.02, 0.3);
+            float ribs = smoothstep(0.12 - aa, 0.12 + aa, abs(fract(slot) - 0.5));
+            emitter += light.rgb * light.a * throat * mix(0.22, 1.0, ribs);
+        } else {
+            emitter += light.a * fixture(p, footprint, vec2(0.0), radius, light.rgb, hull_color);
+        }
+    }
+    return emitter;
 }
 
 struct Surface {
@@ -570,5 +655,38 @@ void main() {
         }
     }
     color += surface.emission;
-    frag_color = vec4(display_color(color), 1.0);
+    if (!u_linear_output) {
+        frag_color = vec4(display_color(color), 1.0);
+        return;
+    }
+    vec3 emitter = vec3(0.0);
+    if (u_effects_profile == 3) {
+        if (v_material == 3) {
+            float pulse = v_local.x < 0.0 ? u_engine_pulse.x : u_engine_pulse.y;
+            vec3 drive = surface.emission * u_drive_tint * pulse;
+            color += drive - surface.emission;
+            emitter = max(drive - vec3(0.14), 0.0);
+        } else if (v_material == 0 && u_lens_count > 0) {
+            emitter = fleet_fixture_radiance(color);
+            color += emitter;
+        } else if (v_material == 6 && u_panel_active && v_local.z >= u_panel_min_z) {
+            bool first = dot(v_local, u_panel_split.xyz) < u_panel_split.w;
+            vec3 panel = surface.emission * (first ? u_panel_first : u_panel_second);
+            color += panel - surface.emission;
+            emitter = max(panel - vec3(0.06), 0.0);
+        }
+    } else if (u_effects_profile > 0) {
+        if (v_material == 3) {
+            float pulse = v_local.x < 0.0 ? u_engine_pulse.x : u_engine_pulse.y;
+            color += surface.emission * (pulse - 1.0);
+            emitter = max(surface.emission * pulse - vec3(0.14), 0.0);
+        } else if (v_material == 0 && abs(v_local_normal.y) > 0.55) {
+            emitter = fixture_radiance(color);
+            color += emitter;
+        }
+    }
+    // Альфа хранит линейную яркость источника. Разрешение MSAA усредняет
+    // её напрямую, сохраняя вклад частично закрытого субпиксельного огня.
+    const vec3 luminance = vec3(0.2126, 0.7152, 0.0722);
+    frag_color = vec4(color, dot(emitter, luminance));
 }

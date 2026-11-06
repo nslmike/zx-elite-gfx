@@ -65,8 +65,10 @@ def close_scene(model_id, catalog, camera=None):
 
 
 def flyby_scene(model_id, catalog):
-    return FlybyScene(model_id, model_source="elite", texture_source="procedural",
-                      catalog=catalog, source_interval=0)
+    scene = FlybyScene(model_id, model_source="elite", texture_source="procedural",
+                       catalog=catalog, source_interval=0)
+    scene.effects_enabled = False
+    return scene
 
 
 def flyby_time(frame):

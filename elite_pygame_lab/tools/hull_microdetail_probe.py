@@ -86,6 +86,7 @@ class ProbeFlightScene(space_viewer.SpaceScene):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.effects_enabled = False
         self.microdetail_enabled = False
         self.reset_probe()
 

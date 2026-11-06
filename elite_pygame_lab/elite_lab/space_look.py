@@ -2,7 +2,8 @@
 
 Новый OpenGL-режим использует исходные фасеты, но самостоятельное оформление:
 собственные панели и ливреи, без заимствованных эмблем и текстур. Цвета материалов
-и HDR-cubemap хранятся в линейном пространстве; шейдеры выводят готовый sRGB.
+и HDR-cubemap хранятся в линейном пространстве; без постобработки шейдеры
+выводят готовый цвет для экрана.
 """
 
 from collections import OrderedDict
@@ -569,12 +570,13 @@ class SpaceLook:
         for unit in range(4, 9):
             self._white.use(unit)
 
-    def draw_sky(self, inv_view_proj: np.ndarray, eye) -> None:
+    def draw_sky(self, inv_view_proj: np.ndarray, eye, *, linear=False) -> None:
         """Нарисовать cubemap; depth/cull остаются выключенными для вызывающего."""
         self.ctx.disable(moderngl.DEPTH_TEST | moderngl.CULL_FACE | moderngl.BLEND)
         matrix = np.asarray(inv_view_proj, dtype="f4").reshape(4, 4)
         self._sky_program["u_inv_view_proj"].write(matrix.T.tobytes())
         self._sky_program["u_eye"].value = tuple(float(value) for value in eye)
+        self._sky_program["u_linear_output"].value = linear
         self._sky.use(location=1)
         self._sky_vao.render(mode=moderngl.TRIANGLES, vertices=3)
 

@@ -8,6 +8,7 @@
 
 from dataclasses import dataclass
 from math import atan2, cos, exp, isfinite, pi, sin, sqrt, tan
+from sys import float_info
 
 import numpy as np
 
@@ -61,6 +62,8 @@ class SpaceScene:
             raise AssetError(f"Неизвестный источник текстур: {texture_source}")
         self.model_source = model_source
         self.texture_source = texture_source
+        self.effects_enabled = True
+        self.animation_elapsed = 0.0
         self._load_objects(self.catalog.fleet(model_source))
         if selected is None:
             selected = COBRA_ID
@@ -384,6 +387,8 @@ class SpaceScene:
 
     def update(self, dt, movement=(0.0, 0.0, 0.0)):
         """Движение камеры; пауза приложения не должна вызывать скачок."""
+        if not self.is_flyby and isfinite(dt) and dt > 0.:
+            self.animation_elapsed = min(float_info.max, self.animation_elapsed + float(dt))
         if self.camera_mode != "flight":
             return
         movement = tuple(movement)

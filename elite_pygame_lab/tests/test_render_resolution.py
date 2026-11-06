@@ -20,9 +20,16 @@ class RenderResolutionTest(unittest.TestCase):
     def renderer(self, samples=4):
         renderer = SpaceRenderer.__new__(SpaceRenderer)
         renderer.ctx = MagicMock(max_samples=samples, error="GL_NO_ERROR")
-        for method in ("texture", "depth_renderbuffer", "renderbuffer", "framebuffer"):
+        renderer.ctx.info = {"GL_MAX_COLOR_TEXTURE_SAMPLES": samples}
+        for method in ("texture", "depth_renderbuffer", "renderbuffer"):
             getattr(renderer.ctx, method).side_effect = lambda *args, **kwargs: Mock()
+        renderer.ctx.framebuffer.side_effect = lambda color, *args: Mock(color_attachments=(color,))
         renderer._world_target = None
+        renderer._internal_size = None
+        renderer._effects_active = False
+        renderer._effect_profiles = {}
+        renderer._failed_target = None
+        renderer._bloom = Mock()
         renderer._draw_world = Mock()
         renderer._present = Mock()
         renderer.hud = SimpleNamespace(resolution=RenderResolution(), draw=Mock())
@@ -51,7 +58,7 @@ class RenderResolutionTest(unittest.TestCase):
         renderer.draw(scene, target, size, True, 9)
         vp = scene.view_projection.return_value
         scene.view_projection.assert_called_once_with(size[0] / size[1])
-        renderer._draw_world.assert_called_once_with(scene, world.draw_frame, internal, vp, True)
+        renderer._draw_world.assert_called_once_with(scene, world.draw_frame, internal, vp, True, linear=False)
         ctx.copy_framebuffer.assert_called_once_with(world.resolve_frame, world.draw_frame)
         self.assertEqual(ctx.viewport, (0, 0, *size))
         self.assertEqual(renderer.hud.resolution.output_size, size)
@@ -88,6 +95,70 @@ class RenderResolutionTest(unittest.TestCase):
             resource.release.assert_called_once_with()
         self.assertIsNone(renderer.prepare_resolution(None))
         self.assertIsNone(renderer._world_target)
+        for resource in old.resources:
+            resource.release.assert_called_once_with()
+
+    def test_hdr_uses_drawable_samples_and_presents_a_fixed_world_before_hud(self):
+        renderer = self.renderer()
+        ctx = renderer.ctx
+        target = Mock(samples=0)
+        renderer._effect_profiles = {9: 1}
+        scene = Mock(model_source="elite", effects_enabled=True)
+        size = (1001, 603)
+        renderer.draw(scene, target, size, False)
+        auto = renderer._world_target
+        self.assertTrue(auto.linear)
+        self.assertIsNone(auto.resolve_frame)
+        ctx.depth_renderbuffer.assert_called_once_with(size, samples=0)
+        for call in ctx.texture.call_args_list[1:]:
+            self.assertEqual(call.args[0], (251, 151))
+        renderer._bloom.draw.assert_called_once_with(auto, target, size)
+
+        internal = RENDER_RESOLUTIONS[1]
+        self.assertIsNone(renderer.prepare_resolution(internal))
+        fixed = renderer._world_target
+        self.assertEqual(fixed.samples, 4)
+        self.assertIsNotNone(fixed.presentation)
+        for resource in auto.resources:
+            resource.release.assert_called_once_with()
+        order = Mock()
+        order.attach_mock(ctx.copy_framebuffer, "resolve")
+        order.attach_mock(renderer._bloom.draw, "bloom")
+        order.attach_mock(renderer._present.render, "present")
+        order.attach_mock(renderer.hud.draw, "hud")
+        renderer.draw(scene, target, size, True)
+        self.assertEqual([entry[0] for entry in order.mock_calls], ["resolve", "bloom", "present", "hud"])
+        renderer._bloom.draw.assert_called_with(fixed, fixed.presentation, internal)
+        self.assertEqual(ctx.viewport, (0, 0, *size))
+
+        scene.effects_enabled = False
+        renderer.draw(scene, target, size, False)
+        self.assertFalse(renderer._world_target.linear)
+        for resource in fixed.resources:
+            resource.release.assert_called_once_with()
+
+    def test_failed_native_hdr_resize_uses_the_whole_output_and_can_recover(self):
+        renderer = self.renderer()
+        renderer._effect_profiles = {9: 1}
+        scene = Mock(model_source="elite", effects_enabled=True)
+        target = Mock(samples=4)
+        renderer.draw(scene, target, (960, 540), False)
+        old = renderer._world_target
+        resize = (1401, 801)
+        renderer._bloom.draw.reset_mock()
+        with patch.object(renderer.ctx, "framebuffer", side_effect=moderngl.Error("нет буфера")) as create:
+            with patch("sys.stderr"):
+                renderer.draw(scene, target, resize, False)
+                renderer.draw(scene, target, resize, False)
+            create.assert_called_once()
+        self.assertIs(renderer._world_target, old)
+        renderer._draw_world.assert_called_with(scene, target, resize, scene.view_projection.return_value, False)
+        renderer._bloom.draw.assert_not_called()
+
+        recovered = (1201, 700)
+        renderer.draw(scene, target, recovered, False)
+        self.assertEqual(renderer._world_target.size, recovered)
+        renderer._bloom.draw.assert_called_once_with(renderer._world_target, target, recovered)
         for resource in old.resources:
             resource.release.assert_called_once_with()
 

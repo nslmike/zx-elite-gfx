@@ -750,6 +750,7 @@ def main(argv=None) -> None:
     parser.add_argument("--screenshot", type=Path, help="Сохранить кадр UI и выйти (для проверки)")
     parser.add_argument("--headless", action="store_true", help="Рендер без окна (для space/flyby — отдельный контекст OpenGL)")
     parser.add_argument("--no-hud", action="store_true", help="Скрыть интерфейс space/flyby")
+    parser.add_argument("--no-effects", action="store_true", help="Цветной показ без новых огней флота, пульсации сопел и ореолов")
     parser.add_argument("--model-source", choices=tuple(FLYBY_SOURCE_NAMES),
                         help="Набор геометрии для space/flyby; zx доступен только в flyby")
     parser.add_argument("--texture-source", choices=tuple(TEXTURE_NAMES), help="Родные карты модели или процедурная обшивка атласа")
@@ -793,7 +794,8 @@ def main(argv=None) -> None:
             run_space(args.model, args.screenshot, args.headless, not args.no_hud,
                       args.model_source or ("zx" if args.mode == "flyby" else "elite"),
                       args.texture_source or "author", mode=args.mode,
-                      source_interval=8.0 if args.source_interval is None else args.source_interval, at=args.at)
+                      source_interval=8.0 if args.source_interval is None else args.source_interval, at=args.at,
+                      effects_enabled=not args.no_effects)
         except AssetError as exc:
             parser.error(str(exc))
         return
@@ -803,6 +805,8 @@ def main(argv=None) -> None:
         parser.error(f"Номер модели должен быть от 0 до {len(MODELS)-1}")
     if args.no_hud:
         parser.error("--no-hud относится к режимам --mode space/flyby")
+    if args.no_effects:
+        parser.error("--no-effects относится к режимам --mode space/flyby")
     if args.mode == "underside" and args.model not in (None, KRAIT_ID):
         parser.error("Пример вида снизу использует Krait (модель 17)")
     if args.mode == "wing" and args.model is not None and args.model not in COBRA_IDS:
