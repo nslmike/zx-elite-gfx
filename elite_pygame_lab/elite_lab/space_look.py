@@ -15,6 +15,7 @@ import numpy as np
 import pygame
 
 from .model import COBRA_ID
+from .space_reflections import DFG_SIZE, REFLECTION_LEVELS, REFLECTION_SIZE, cube_project, dfg_lut, reflection_levels
 
 
 _SHADERS = Path(__file__).with_name("shaders")
@@ -23,6 +24,7 @@ _SUN /= np.linalg.norm(_SUN)
 SUN_DIRECTION = tuple(float(value) for value in _SUN)
 _SKY_SIZE = 1536
 _SURFACE_SIZE = 2048
+_REFINED_MODELS = frozenset((COBRA_ID, 10))
 
 # Место бортового номера на правом плече корпуса (X, Z, ширина трафарета).
 _REGISTRATION = {8: (.24, .01, .25), 9: (.55, -.11, .30), 12: (.55, -.11, .30),
@@ -315,19 +317,10 @@ def _cube_direction(face: int, s: np.ndarray, t: np.ndarray) -> np.ndarray:
     return direction / np.linalg.norm(direction, axis=-1, keepdims=True)
 
 
-def _cube_project(face: int, directions: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    x, y, z = directions.T
-    mappings = ((-z, -y, x), (z, -y, -x), (x, z, y),
-                (x, -z, -y), (x, -y, z), (-x, -y, -z))
-    s, t, depth = mappings[face]
-    divisor = np.where(depth > 0, depth, 1)
-    return s / divisor, t / divisor, depth
-
-
 def _splat_stars(image: np.ndarray, face: int, stars: np.ndarray,
                  magnitudes: np.ndarray, colors: np.ndarray) -> None:
     size = image.shape[0]
-    s, t, depth = _cube_project(face, stars)
+    s, t, depth = cube_project(face, stars)
     visible = (depth > 0) & (np.abs(s) < 1.025) & (np.abs(t) < 1.025)
     for px, py, magnitude, color in zip((s[visible] + 1) * .5 * size - .5,
                                        (t[visible] + 1) * .5 * size - .5,
@@ -350,8 +343,8 @@ def _splat_stars(image: np.ndarray, face: int, stars: np.ndarray,
         image[y0:y1, x0:x1] += psf[:, :, None] * color * magnitude
 
 
-def _sky_faces(size: int):
-    """Шесть HDR-граней из единого сферического поля; нет швов туманности."""
+def _sky_faces(size: int, reflection_size: int):
+    """Шесть видимых HDR-граней и их малые копии для отражений."""
     rng = np.random.default_rng(0x5AACE)
     grid = rng.random((32, 32, 32), dtype="f4")
     galactic_normal = np.array((.88, .46, .11), dtype="f4")
@@ -370,6 +363,7 @@ def _sky_faces(size: int):
     magnitudes *= .72 + np.exp(-(latitude_stars / .22) ** 2) * .58
     coordinates = (np.arange(size, dtype="f4") + .5) * (2.0 / size) - 1.0
     s, t = np.meshgrid(coordinates, coordinates)
+    block = size // reflection_size
     for face in range(6):
         direction = _cube_direction(face, s, t)
         x, y, z = (direction[:, :, index] for index in range(3))
@@ -391,6 +385,10 @@ def _sky_faces(size: int):
         rgb += warm[:, :, None] * np.array((.058, .024, .013), dtype="f4")
         _splat_stars(rgb, face, stars, magnitudes, colors)
 
+        # Усреднение сохраняет энергию звёзд. Само солнце уже освещает
+        # корабли напрямую и в предварительную фильтрацию не попадает.
+        reduced = rgb.reshape(reflection_size, block, reflection_size, block, 3)
+        lighting = reduced.mean(axis=3).mean(axis=1).astype("f2").tobytes()
         cosine = np.clip(x * _SUN[0] + y * _SUN[1] + z * _SUN[2], -1, 1)
         angle = np.arccos(cosine)
         corona = np.exp(-angle / .018) * .22 + np.exp(-(angle / .065) ** 2) * .010
@@ -400,7 +398,7 @@ def _sky_faces(size: int):
         # Узкая корона, без крупной фотографической линзы поверх кораблей.
         rgba = np.ones((size, size, 4), dtype="f2")
         rgba[:, :, :3] = rgb
-        yield rgba.tobytes()
+        yield rgba.tobytes(), lighting
 
 
 class SpaceLook:
@@ -413,6 +411,7 @@ class SpaceLook:
 
     def __init__(self, ctx: moderngl.Context):
         self.ctx = ctx
+        self.refined_materials_enabled = True
         self.hull = ctx.program(
             vertex_shader=(_SHADERS / "space_hull.vert").read_text(),
             fragment_shader=(_SHADERS / "space_hull.frag").read_text(),
@@ -439,10 +438,23 @@ class SpaceLook:
         # базового уровня +X. RGBA16F проверен кодированием направлений сферы;
         # дополнительный канал сохраняет корректными и base, и mip-уровни.
         self._sky = ctx.texture_cube((_SKY_SIZE, _SKY_SIZE), 4, dtype="f2")
-        for face, pixels in enumerate(_sky_faces(_SKY_SIZE)):
+        reflection_size = min(_SKY_SIZE, 128)
+        lighting_faces = []
+        for face, (pixels, lighting) in enumerate(_sky_faces(_SKY_SIZE, reflection_size)):
             self._sky.write(face, pixels)
+            lighting_faces.append(lighting)
         self._sky.build_mipmaps()
         self._sky.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+        levels = reflection_levels(reflection_size, tuple(lighting_faces))
+        self._reflections = ctx.texture(REFLECTION_SIZE, 4, levels[0], dtype="f2")
+        self._reflections.repeat_x, self._reflections.repeat_y = True, False
+        self._reflections.build_mipmaps(max_level=REFLECTION_LEVELS - 1)
+        for level, data in enumerate(levels[1:], 1):
+            self._reflections.write(data, level=level)
+        self._reflections.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
+        self._dfg = ctx.texture((DFG_SIZE, DFG_SIZE), 2, dfg_lut(), dtype="f2")
+        self._dfg.repeat_x = self._dfg.repeat_y = False
+        self._dfg.filter = (moderngl.LINEAR, moderngl.LINEAR)
         # GL_TEXTURE_CUBE_MAP_SEAMLESS входит в Core начиная с 3.2.
         ctx.enable_direct(0x884F)
         self.hull["u_surface"].value = 0
@@ -458,6 +470,9 @@ class SpaceLook:
             self.hull[f"u_{name}_map"].value = unit
             self._white.use(unit)
         self.hull["u_sky"].value = 1
+        self.hull["u_reflections"].value = 10
+        self.hull["u_reflection_max_lod"].value = REFLECTION_LEVELS - 1
+        self.hull["u_dfg"].value = 11
         self.hull["u_sun_direction"].value = SUN_DIRECTION
         self.hull["u_shadow"].value = 2
         self.hull["u_shadow_enabled"].value = False
@@ -477,6 +492,7 @@ class SpaceLook:
             # всех остальных исходных каркасов задаются отдельным профилем.
             "u_cobra_finishes": model_id == COBRA_ID and not (imported or authored),
             "u_classic_finishes": classic,
+            "u_refined_materials": self.refined_materials_enabled and classic and model_id in _REFINED_MODELS,
             "u_finish_layout": finish.layout,
             "u_finish_response": finish.response,
             "u_damage_profile": finish.damage,
@@ -504,6 +520,8 @@ class SpaceLook:
         self._surface_slope.use(location=9)
         self._sky.use(location=1)
         self._stencils.use(location=3)
+        self._reflections.use(location=10)
+        self._dfg.use(location=11)
 
     def use_material(self, material):
         maps = ((material.diffuse, None), (material.normal, (128, 128, 255)),
@@ -564,5 +582,5 @@ class SpaceLook:
         """Освободить GL-ресурсы до закрытия контекста."""
         self.release_imported_textures()
         for resource in (self._sky_vao, self._surface, self._surface_slope, self._stencils,
-                         self._white, self._sky, self._sky_program, self.hull):
+                         self._white, self._sky, self._reflections, self._dfg, self._sky_program, self.hull):
             resource.release()

@@ -61,11 +61,12 @@ class SurfaceSlopeTests(unittest.TestCase):
         np.testing.assert_array_equal(pixels, original)
 
     def test_classic_profiles_never_replace_imported_or_authored_styles(self):
-        def uniforms(model_id, **kwargs):
+        def uniforms(model_id, *, refined=True, **kwargs):
             look = space_look.SpaceLook.__new__(space_look.SpaceLook)
             look.hull = defaultdict(SimpleNamespace)
+            look.refined_materials_enabled = refined
             texture = SimpleNamespace(use=lambda **_: None)
-            for name in ("_surface", "_surface_slope", "_sky", "_stencils"):
+            for name in ("_surface", "_surface_slope", "_sky", "_stencils", "_reflections", "_dfg"):
                 setattr(look, name, texture)
             look.configure_model(model_id, **kwargs)
             return {key: value.value for key, value in look.hull.items()}
@@ -74,11 +75,14 @@ class SurfaceSlopeTests(unittest.TestCase):
             native = uniforms(model_id)
             self.assertTrue(native["u_classic_finishes"])
             self.assertEqual(native["u_cobra_finishes"], model_id == 9)
+            self.assertEqual(native["u_refined_materials"], model_id in (9, 10))
+            self.assertFalse(uniforms(model_id, refined=False)["u_refined_materials"])
             for source in ({"imported": True}, {"authored": True}, {"imported": True, "authored": True}):
                 with self.subTest(model_id=model_id, source=source):
                     foreign = uniforms(model_id, **source)
                     self.assertFalse(foreign["u_classic_finishes"])
                     self.assertFalse(foreign["u_cobra_finishes"])
+                    self.assertFalse(foreign["u_refined_materials"])
                     self.assertEqual(foreign["u_roughness"], style.roughness)
                     self.assertEqual(foreign["u_wear"], style.wear)
                     self.assertEqual(foreign["u_metal_color"], space_look._linear(style.metal))

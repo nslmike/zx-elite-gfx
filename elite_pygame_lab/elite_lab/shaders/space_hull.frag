@@ -8,6 +8,7 @@ uniform bool u_imported;
 uniform bool u_cross_bitangent;
 uniform bool u_cobra_finishes;
 uniform bool u_classic_finishes;
+uniform bool u_refined_materials;
 uniform vec4 u_finish_layout;
 uniform vec2 u_finish_response;
 uniform vec2 u_damage_profile;
@@ -24,6 +25,9 @@ uniform vec3 u_specular_tint;
 uniform vec3 u_patch;
 uniform vec2 u_stencil_tile;
 uniform samplerCube u_sky;
+uniform sampler2D u_reflections;
+uniform float u_reflection_max_lod;
+uniform sampler2D u_dfg;
 uniform sampler2DShadow u_shadow;
 uniform bool u_shadow_enabled;
 uniform vec3 u_eye;
@@ -110,6 +114,39 @@ struct Surface {
     float occlusion;
     vec3 emission;
 };
+
+float classic_refined_roughness(vec4 panel, float wear, float metal, float ink) {
+    // Микрофактура закреплена на корпусе и уходит в среднее вдали. Наклон
+    // рельефа по-прежнему берётся исключительно из исходной G-карты.
+    vec3 p = v_local * vec3(64.0, 62.0, 82.0) + vec3(u_seed);
+    float footprint = max(length(dFdx(p)), length(dFdy(p)));
+    float grain = (value_noise(p) - 0.5) * (1.0 - smoothstep(0.25, 0.85, footprint));
+    if (v_material == 2 || v_material == 6)
+        return clamp(u_finish_response.y + 0.025 + grain * 0.03, 0.36, 0.66);
+
+    float tone = panel.r - 0.59;
+    float damage = panel.b;
+    float equipment = 1.0 - panel.a;
+    float alloy = clamp(u_finish_response.x - 0.025 + tone * 0.20 + damage * 0.24 +
+                        wear * 0.11 + equipment * 0.16 + grain * 0.080, 0.20, 0.80);
+    if (v_material != 0)
+        return alloy;
+
+    float pigment = clamp(u_roughness - 0.04 + tone * 0.34 + (damage - 0.24) * 0.12 +
+                          equipment * 0.10 + grain * 0.045, 0.60, 0.92);
+    pigment = mix(pigment, 0.54 + damage * 0.23 + grain * 0.035, wear * 0.84);
+    return mix(mix(pigment, alloy, metal), clamp(u_roughness + 0.015, 0.62, 0.94), ink);
+}
+
+vec3 environment_specular(vec3 reflection, float roughness, float nv, vec3 f0) {
+    float longitude = abs(reflection.x) + abs(reflection.z) > 1e-6 ?
+                      atan(reflection.z, reflection.x) : 0.0;
+    vec2 uv = vec2(longitude / (2.0 * PI),
+                   asin(clamp(reflection.y, -1.0, 1.0)) / PI) + 0.5;
+    vec3 radiance = textureLod(u_reflections, uv, roughness * u_reflection_max_lod).rgb;
+    vec2 dfg = textureLod(u_dfg, vec2(nv, roughness), 0.0).rg;
+    return radiance * (f0 * dfg.x + dfg.y);
+}
 
 // Силовые секции идут вдоль двух верхних плеч исходной Cobra. Границы
 // принадлежат корпусу, а fwidth сглаживает их и на общем плане, и вблизи.
@@ -367,9 +404,10 @@ Surface procedural_surface() {
         metallic = 0.1;
     }
 
+    float metal_panel = 0.0;
     if (u_classic_finishes) {
         if (v_material == 0) {
-            float metal = classic_metal_mask();
+            metal_panel = classic_metal_mask();
             // Пигмент — шероховатый диэлектрик. Царапины прежней карты
             // сохраняют и расположение, и металлическое основание.
             roughness = clamp(u_roughness + (damage - 0.5) * 0.14 +
@@ -378,9 +416,9 @@ Surface procedural_surface() {
             metallic = mix(0.025, 0.80, wear);
             vec3 alloy = u_metal_color * mix(0.88, 1.32, panel_tone);
             alloy *= mix(0.68, 1.0, recess) * mix(0.55, 1.0, equipment);
-            albedo = mix(albedo, alloy, metal);
-            roughness = mix(roughness, clamp(u_finish_response.x + damage * 0.10 + wear * 0.05, 0.19, 0.70), metal);
-            metallic = mix(metallic, 0.97, metal);
+            albedo = mix(albedo, alloy, metal_panel);
+            roughness = mix(roughness, clamp(u_finish_response.x + damage * 0.10 + wear * 0.05, 0.19, 0.70), metal_panel);
+            metallic = mix(metallic, 0.97, metal_panel);
         } else if (v_material == 1 || v_material == 4) {
             albedo = u_metal_color * mix(0.52, 1.06, panel_tone);
             albedo *= mix(0.64, 1.0, equipment);
@@ -409,6 +447,10 @@ Surface procedural_surface() {
         metallic = mix(metallic, 0.025, registration_ink);
     }
 
+    if (u_refined_materials) {
+        float refined = classic_refined_roughness(surface, wear, metal_panel, registration_ink);
+        if (v_material != 3) roughness = refined;
+    }
     return Surface(n, albedo, roughness, metallic, occlusion, emission);
 }
 
@@ -494,20 +536,22 @@ void main() {
     vec3 ambient = mix(vec3(0.080, 0.102, 0.153), vec3(0.215, 0.254, 0.318), up);
     color += albedo * ambient * occlusion * (1.0 - metallic * 0.46);
     vec3 reflection = reflect(-view_direction, n);
-    vec3 reflected_sky = textureLod(u_sky, reflection, roughness * 7.0).rgb;
     vec3 edge_fresnel = fresnel_schlick(nv, f0);
-    color += (reflected_sky * 0.30 + vec3(0.028, 0.045, 0.073)) * edge_fresnel * occlusion;
-    if (u_author_maps) {
-        // Та же холодная полусфера, что у рассеянного света, в отражении металла.
-        vec3 reflected_fill = mix(vec3(.065, .078, .10), vec3(.18, .23, .29), reflection.y * .5 + .5);
-        color += reflected_fill * edge_fresnel;
-    }
-    if (classic_surface) {
-        // Та же широкая холодная полусфера, что освещает обшивку. Металл
-        // отражает её цвет, тогда как матовая краска в основном рассеивает.
-        vec3 reflected_fill = mix(vec3(0.065, 0.078, 0.10), vec3(0.18, 0.23, 0.29),
-                                  reflection.y * 0.5 + 0.5);
-        color += reflected_fill * edge_fresnel * occlusion;
+    if (u_refined_materials && classic_surface) {
+        color += environment_specular(reflection, roughness, nv, f0) * occlusion;
+    } else {
+        vec3 reflected_sky = textureLod(u_sky, reflection, roughness * 7.0).rgb;
+        color += (reflected_sky * 0.30 + vec3(0.028, 0.045, 0.073)) * edge_fresnel * occlusion;
+        if (u_author_maps) {
+            // Та же холодная полусфера, что у рассеянного света, в отражении металла.
+            vec3 reflected_fill = mix(vec3(.065, .078, .10), vec3(.18, .23, .29), reflection.y * .5 + .5);
+            color += reflected_fill * edge_fresnel;
+        }
+        if (classic_surface) {
+            vec3 reflected_fill = mix(vec3(0.065, 0.078, 0.10), vec3(0.18, 0.23, 0.29),
+                                      reflection.y * 0.5 + 0.5);
+            color += reflected_fill * edge_fresnel * occlusion;
+        }
     }
     if (v_material == 2 || (classic_glass && v_material == 6)) {
         if (cobra_glass) {

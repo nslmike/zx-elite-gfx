@@ -538,6 +538,25 @@ def _extra_details(mesh, model_id, points, hull):
         panel_on(6, amount=.52, material=6)
 
 
+# Номера фасет и направление общей ортогональной проекции обшивки.
+# Фасеты вне этих групп сохраняют собственную плоскость UV.
+_HULL_UV_PROJECTIONS = {
+    # Missile: каждая фасета носа продолжает одну продольную стенку.
+    1: (((0, 6), (-1, 0, 0)), ((1, 5), (0, -1, 0)),
+        ((2, 4), (1, 0, 0)), ((3, 7), (0, 1, 0))),
+    8: (((0, 1, 2), (0, 1, 0)), ((3, 4, 5), (0, -1, 0))),  # Viper
+    # Наклон верхней проекции к носу уменьшает сжатие на боковых фасетах 9 и 10.
+    13: (((3, 4, 5, 6, 9, 10), (0, 4, 3)), ((0, 1, 2, 7, 8), (0, -1, 0))),
+    # Fer-de-Lance: верх и два вертикальных борта.
+    14: (((0, 6, 7, 8), (0, 1, 0)), ((1, 2), (-1, 0, 0)), ((4, 5), (1, 0, 0))),
+    # У таргонов ось корпуса X. Наклон к −Z раскрывает крутую фасету 3 Thargon.
+    15: ((range(9), (1, 0, 0)),),
+    16: (((0, 1, 2), (0, 1, 0)), ((4, 5, 6), (0, -1, 0))),  # Sidewinder
+    KRAIT_ID: (((0, 3), (0, 1, 0)), ((1, 2), (0, -1, 0)), ((4, 5), (0, 0, -1))),
+    18: ((range(1, 7), (2.2, 0, -1)),),
+}
+
+
 @lru_cache(maxsize=len(MODELS))
 def _build_cached(model_id):
     model = MODELS[model_id]
@@ -545,6 +564,10 @@ def _build_cached(model_id):
     polygons = _hull_polygons(model_id)
     hull = dict(polygons)
     mesh = _Mesh(points)
+    chart_bases = {}
+    for faces, direction in _HULL_UV_PROJECTIONS.get(model_id, ()):
+        basis = _basis(_unit(np.array(direction, dtype=float)))
+        chart_bases.update((face, basis) for face in faces)
     if model_id in COBRA_IDS:
         # Оставляем узнаваемую решётку у передней пятой части правого стыка
         # (вершины 0–6). Фаза общая всему верху, без отдельных UV-сдвигов
@@ -579,15 +602,17 @@ def _build_cached(model_id):
             material = 1
         normal = _normal(facet)
         uv_origin = .5
-        if model_id in COBRA_IDS and face != 9:
-            # Верх и низ Cobra состоят из отдельных машинных граней. Их
-            # прежние локальные базы разрывали панели и жалюзи на стыках.
+        if ((model_id in COBRA_IDS and face != 9)
+                or (model_id in (10, 11) and face != 12)):
+            # Локальные базы машинных граней разрывают рисунок на стыках.
             # Общая проекция X/Z сохраняет масштаб и ориентацию обшивки;
             # кормовая стенка, накладные детали и реальные нормали отдельны.
             basis = (np.array((1. if normal[1] > 0 else -1., 0., 0.)),
                      np.array((0., 0., -1.)))
-            if normal[1] > 0:
+            if model_id in COBRA_IDS and normal[1] > 0:
                 uv_origin = .5 + cobra_upper_offset
+        elif face in chart_bases:
+            basis = chart_bases[face]
         else:
             basis = _basis(normal)
         for triangle in _facet_triangles(model, loop, points):
@@ -618,8 +643,8 @@ def build_mesh(model_id: int) -> np.ndarray:
     Возвращает независимый C-contiguous float32-массив (N, 9), по три строки
     на треугольник. Копия позволяет вызывающему коду безопасно менять буфер.
     UV материала 3 локальны для каждой отдельной апертуры (0..1); у других
-    материалов они согласованы в плоскостях граней в масштабе корпуса.
-    У Cobra верх и низ корпуса имеют общие непрерывные проекции X/Z.
+    материалов они используют масштаб корпуса. Смежные фасеты обшивки
+    могут иметь общую плоскость проекции.
     Для 0..19 результат детерминирован; неизвестный ID вызывает ValueError.
     """
     if isinstance(model_id, bool) or not isinstance(model_id, (int, np.integer)) or not 0 <= model_id < len(MODELS):

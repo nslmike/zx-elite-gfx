@@ -1,6 +1,6 @@
 """Проверки поверхности OpenGL-атласа; numpy — отдельная зависимость атласа."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 from itertools import combinations
 import unittest
 
@@ -12,12 +12,22 @@ except ImportError:
 from elite_lab.model import COBRA_IDS, DODO_ID, KRAIT_ID, MODELS
 from elite_lab.space_mesh import (
     _Mesh, _cycles, _facet_triangles, _hull_polygons,
-    _signed_volume, build_mesh,
+    _signed_volume, build_mesh, source_transform,
 )
 
 
 def _points(model_id):
     return np.array([(v.x, v.y, v.z) for v in MODELS[model_id].vertices], dtype=float)
+
+
+def _hull_triangles(model_id):
+    """Треугольники готового буфера, сгруппированные по исходным фасетам."""
+    triangles = build_mesh(model_id).reshape(-1, 3, 9)
+    start = 0
+    for face, loop in _hull_polygons(model_id):
+        stop = start + len(loop) - 2
+        yield face, triangles[start:stop]
+        start = stop
 
 
 def _edges(triangles):
@@ -278,8 +288,120 @@ class SpaceMeshTest(unittest.TestCase):
             new_anchor = (4 * face_rows[2][i, 6:8] + face_rows[2][j, 6:8]) / 5
             np.testing.assert_allclose(new_anchor, old_anchor, atol=1e-7)
 
+    def test_python_hull_uv_joins_across_the_upper_and_lower_sides(self):
+        for model_id in (10, 11):
+            with self.subTest(model_id=model_id):
+                points = _points(model_id)
+                uv_scale = _Mesh(points).uv_scale
+                center, radius = source_transform(model_id)
+                positions = (points.astype("f4") - center) / radius
+                hull = dict(_hull_polygons(model_id))
+                data = iter(build_mesh(model_id).reshape(-1, 3, 9))
+                face_uv = {}
+                for face, loop in hull.items():
+                    face_uv[face] = {}
+                    for triangle in _facet_triangles(MODELS[model_id], loop, points):
+                        rows = next(data)
+                        indices = list(triangle)
+                        np.testing.assert_array_equal(rows[:, :3], positions[indices])
+                        np.testing.assert_array_equal(rows[:, 8], 0)
+                        for vertex, uv in zip(triangle, rows[:, 6:8]):
+                            np.testing.assert_array_equal(face_uv[face].setdefault(vertex, uv), uv)
+
+                        # Отношение плотностей в двух осях измеряется в
+                        # ортонормированной системе исходного треугольника.
+                        triangle_points = points[indices]
+                        _, frame = np.linalg.qr((triangle_points[1:] - triangle_points[0]).T)
+                        triangle_uv = rows[:, 6:8].astype(float)
+                        uv_edges = (triangle_uv[1:] - triangle_uv[0]) * uv_scale
+                        self.assertGreater(np.linalg.det(uv_edges), 0, face)
+                        density = np.linalg.svd(np.linalg.solve(frame.T, uv_edges), compute_uv=False)
+                        self.assertGreater(density.min(), .80, face)
+                        self.assertLess(density.max(), 1.00001, face)
+
+                for faces in ((0, 1, 4, 5, 8, 9), (2, 3, 6, 7, 10, 11)):
+                    edge_uv, joined = {}, 0
+                    for face in faces:
+                        loop = hull[face]
+                        for a, b in zip(loop, loop[1:] + loop[:1]):
+                            edge = tuple(sorted((a, b)))
+                            uv = [face_uv[face][vertex] for vertex in edge]
+                            if edge in edge_uv:
+                                np.testing.assert_array_equal(edge_uv[edge], uv)
+                                joined += 1
+                            edge_uv[edge] = uv
+                    self.assertEqual(joined, 7)
+
+                # Кормовая стенка сохраняет прежнюю проекцию −X/Y.
+                for vertex, uv in face_uv[12].items():
+                    x, y, _ = points[vertex]
+                    np.testing.assert_array_equal(uv, (np.array((-x, y)) / uv_scale + .5).astype("f4"))
+
+    def test_classic_hull_uv_match_at_shared_edges(self):
+        # Контрольное ребро, число сшитых стыков фасет и минимальный
+        # угол на границе развёрток по результатам аудита.
+        cases = {
+            1: ((2, 3), 4, 86),
+            8: ((1, 8), 6, 89),
+            13: ((11, 12), 14, 65),
+            14: ((8, 9), 6, 59),
+            15: ((4, 12), 16, 147),
+            16: ((0, 4), 4, 96),
+            KRAIT_ID: ((0, 1), 3, 92),
+            18: ((4, 9), 10, 108),
+        }
+        for model_id, (control_edge, expected_joined, min_seam_angle) in cases.items():
+            with self.subTest(model_id=model_id):
+                center, radius = source_transform(model_id)
+                positions = (_points(model_id).astype("f4") - center) / radius
+                vertex_ids = {tuple(position): i for i, position in enumerate(positions)}
+                edges = defaultdict(list)
+                for face, triangles in _hull_triangles(model_id):
+                    for triangle in triangles:
+                        ids = [vertex_ids[tuple(row[:3])] for row in triangle]
+                        for a, b in ((0, 1), (1, 2), (2, 0)):
+                            if ids[a] > ids[b]:
+                                a, b = b, a
+                            edges[ids[a], ids[b]].append(
+                                (face, triangle[[a, b], 6:8], triangle[0, 3:6]))
+
+                self.assertIn(control_edge, edges)
+                joined = 0
+                for edge, sides in edges.items():
+                    self.assertEqual(len(sides), 2, edge)
+                    (face_a, uv_a, normal_a), (face_b, uv_b, normal_b) = sides
+                    if face_a == face_b or edge == control_edge:
+                        # Совпадение концов гарантирует одинаковую выборку
+                        # по всему ребру при любом масштабе и повторе карты.
+                        np.testing.assert_array_equal(uv_a, uv_b, err_msg=str(edge))
+                    if face_a != face_b:
+                        if np.array_equal(uv_a, uv_b):
+                            joined += 1
+                        else:
+                            self.assertLessEqual(normal_a @ normal_b,
+                                                 np.cos(np.deg2rad(min_seam_angle)), edge)
+                self.assertEqual(joined, expected_joined)
+
+    def test_classic_hull_uv_preserve_orientation_and_texel_density(self):
+        # Нижние пределы плотности относительно исходного масштаба карты.
+        limits = {1: .96, 8: .79, 13: .60, 14: .86, 15: .84,
+                  16: .96, KRAIT_ID: .89, 18: .67}
+        for model_id, min_density in limits.items():
+            with self.subTest(model_id=model_id):
+                _, radius = source_transform(model_id)
+                uv_scale = _Mesh(_points(model_id)).uv_scale
+                for face, triangles in _hull_triangles(model_id):
+                    for triangle in triangles.astype(float):
+                        positions, uv = triangle[:, :3], triangle[:, 6:8]
+                        _, frame = np.linalg.qr((positions[1:] - positions[0]).T)
+                        uv_edges = (uv[1:] - uv[0]) * uv_scale / radius
+                        self.assertGreater(np.linalg.det(uv_edges), 0, face)
+                        density = np.linalg.svd(np.linalg.solve(frame.T, uv_edges), compute_uv=False)
+                        self.assertGreater(density[1], min_density, face)
+                        self.assertAlmostEqual(density[0], 1, places=5, msg=str(face))
+
     def test_each_engine_aperture_uses_its_own_unit_uv_rectangle(self):
-        for model_id in (1, 8, 9, 10, 12, 13, 16, 17):
+        for model_id in (1, 8, 9, 10, 11, 12, 13, 16, 17):
             with self.subTest(model_id=model_id):
                 data = build_mesh(model_id)
                 triangles = data[data[:, 8] == 3].reshape(-1, 3, 9)
